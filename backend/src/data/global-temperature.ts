@@ -39,6 +39,23 @@ const temperatureStory: Story = {
   description:
     'Annual global mean surface temperature anomaly (°C) relative to the 1951–1980 baseline. Source: NASA GISTEMP.',
   displayMode: 'choropleth',
+  choropleth: {
+    geoJsonUrl: '/geojson/world-countries',
+    valueFormula: 'localAnomaly',
+    unit: '°C',
+    colorStops: [
+      [-5,    '#053061'],
+      [-3,    '#2166ac'],
+      [-1.5,  '#92c5de'],
+      [-0.25, '#d1e5f0'],
+      [ 0,    '#f7f7f7'],
+      [ 0.25, '#fddbc7'],
+      [ 1.5,  '#f4a582'],
+      [ 3,    '#d6604d'],
+      [ 5,    '#b2182b'],
+      [ 7,    '#67001f'],
+    ],
+  },
   map: { center: [0, 20], zoom: 1.5 },
   timeRange: { start: '1880-01-01T00:00:00Z', end: '2023-12-31T00:00:00Z' },
   events: GISTEMP.map(([year, value]) => ({

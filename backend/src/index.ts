@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia'
 import { cors } from '@elysiajs/cors'
 import { stories } from './data/stories'
+import { getAugmentedWorldGeoJson } from './geojson'
 
 const app = new Elysia()
   .use(cors())
@@ -10,6 +11,7 @@ const app = new Elysia()
     if (!story) return status(404, { message: 'Story not found' })
     return story
   })
+  .get('/geojson/world-countries', () => getAugmentedWorldGeoJson())
   .listen(3000)
 
 console.log('Fact-o-Map backend running at http://localhost:3000')

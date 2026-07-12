@@ -1,6 +1,6 @@
 import type { Story } from '@fact-o-map/types'
 
-const BASE = 'http://localhost:3000'
+export const BASE = 'http://localhost:3000'
 
 export async function getStories(): Promise<Story[]> {
   const res = await fetch(`${BASE}/stories`)

@@ -2,8 +2,9 @@
   import { onMount, onDestroy } from 'svelte'
   import { get } from 'svelte/store'
   import type { StyleSpecification } from 'maplibre-gl'
-  import type { Story, StoryEvent } from '@fact-o-map/types'
+  import type { ChoroplethConfig, Story, StoryEvent } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
+  import { BASE } from './api'
 
   let { story, styleOverride = undefined }: { story: Story; styleOverride?: string | StyleSpecification } = $props()
 
@@ -17,107 +18,30 @@
     return import.meta.env.VITE_DEFAULT_MAP_STYLE ?? 'https://tiles.openfreemap.org/styles/fiord'
   }
 
-  // --- Choropleth helpers ---
+  // --- Generic choropleth helpers ---
 
-  // Measured 1951–1980 mean annual temperature (°C) for major countries.
-  // Land masses run warmer than the global ocean-weighted lat→temp curve, so we hardcode
-  // the well-known ones and fall back to the lat formula for unnamed/small countries.
-  const COUNTRY_BASELINE: Record<string, number> = {
-    'Russia': -5.5, 'Canada': -4.5, 'United States of America': 8.5,
-    'Brazil': 25.5, 'Australia': 21.5, 'China': 7.5, 'India': 25.0,
-    'Argentina': 14.0, 'Kazakhstan': 3.5, 'Algeria': 22.5,
-    'Dem. Rep. Congo': 24.5, 'Saudi Arabia': 26.5, 'Mexico': 21.0,
-    'Indonesia': 26.5, 'Sudan': 28.0, 'Libya': 22.5, 'Iran': 17.5,
-    'Mongolia': -0.5, 'Peru': 18.0, 'Chad': 28.0, 'Niger': 29.0,
-    'Angola': 22.0, 'Mali': 29.0, 'South Africa': 17.5, 'Colombia': 24.0,
-    'Ethiopia': 22.5, 'Bolivia': 15.5, 'Mauritania': 28.5, 'Egypt': 22.0,
-    'Tanzania': 22.5, 'Nigeria': 27.0, 'Venezuela': 26.0, 'Pakistan': 20.0,
-    'Mozambique': 22.5, 'Turkey': 12.5, 'Chile': 8.5, 'Zambia': 21.5,
-    'Myanmar': 23.5, 'Afghanistan': 12.5, 'Somalia': 27.5, 'Ukraine': 7.5,
-    'Germany': 8.5, 'France': 11.5, 'Spain': 14.0, 'Poland': 8.0,
-    'United Kingdom': 9.0, 'Italy': 13.5, 'Romania': 9.5, 'Hungary': 10.5,
-    'Belarus': 6.0, 'Czech Republic': 8.5, 'Serbia': 11.0, 'Bulgaria': 10.5,
-    'Sweden': 2.5, 'Norway': 1.5, 'Finland': 1.0, 'Japan': 11.5,
-    'South Korea': 11.0, 'North Korea': 5.5,
-  }
-
-  // Approximate mean annual temperature (°C) from absolute latitude — used as fallback.
-  function latBaseline(absLat: number): number {
-    const table: [number, number][] = [
-      [0, 27], [10, 26], [20, 22], [30, 17],
-      [40, 12], [50, 7],  [60, 1],  [70, -10], [80, -22], [90, -35],
-    ]
-    for (let i = 1; i < table.length; i++) {
-      if (absLat <= table[i][0]) {
-        const t = (absLat - table[i - 1][0]) / (table[i][0] - table[i - 1][0])
-        return table[i - 1][1] + t * (table[i][1] - table[i - 1][1])
-      }
+  // Build a MapLibre fill-color expression from the story's choropleth config.
+  function buildColorExpression(value: number, cfg: ChoroplethConfig): unknown[] {
+    let inputExpr: unknown
+    switch (cfg.valueFormula) {
+      case 'localAnomaly':
+        // Polar amplification: amp = 1 + 2×|lat|/90 → equator 1×, poles 3×
+        inputExpr = ['*', value, ['+', 1, ['*', 2, ['/', ['abs', ['get', 'lat']], 90]]]]
+        break
+      default:
+        inputExpr = value
     }
-    return -35
+    return ['interpolate', ['linear'], inputExpr, ...cfg.colorStops.flat()]
   }
 
-  function baselineTemp(absLat: number, name?: string): number {
-    if (name && COUNTRY_BASELINE[name] !== undefined) return COUNTRY_BASELINE[name]
-    return latBaseline(absLat)
-  }
-
-  function centroidLat(feature: { geometry: { coordinates: unknown } }): number {
-    const lats: number[] = []
-    const collect = (c: unknown): void => {
-      if (!Array.isArray(c)) return
-      if (typeof c[0] === 'number') { lats.push(c[1] as number); return }
-      c.forEach(collect)
+  // Mirror of the MapLibre formula in plain JS — used for tooltip and label text.
+  function computeDisplayValue(value: number, cfg: ChoroplethConfig, lat: number): number {
+    switch (cfg.valueFormula) {
+      case 'localAnomaly':
+        return value * (1 + 2 * Math.abs(lat) / 90)
+      default:
+        return value
     }
-    collect(feature.geometry.coordinates)
-    return lats.length ? lats.reduce((a, b) => a + b, 0) / lats.length : 0
-  }
-
-  // Shoelace formula on a single ring — returns area in square degrees.
-  function ringArea(ring: number[][]): number {
-    let a = 0
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-      a += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1]
-    }
-    return Math.abs(a / 2)
-  }
-
-  function featureArea(feature: { geometry: { type: string; coordinates: unknown } }): number {
-    const g = feature.geometry
-    if (g.type === 'Polygon') return ringArea((g.coordinates as number[][][])[0])
-    if (g.type === 'MultiPolygon')
-      return (g.coordinates as number[][][][]).reduce((s, p) => s + ringArea(p[0]), 0)
-    return 0
-  }
-
-  // Centroid of the single largest polygon ring — avoids placing multiple labels across islands.
-  function largestRingCentroid(feature: { geometry: { type: string; coordinates: unknown } }): [number, number] {
-    const g = feature.geometry
-    const rings: number[][][] =
-      g.type === 'Polygon'
-        ? [(g.coordinates as number[][][])[0]]
-        : (g.coordinates as number[][][][]).map((p) => p[0])
-    let best = rings[0], bestA = 0
-    for (const r of rings) { const a = ringArea(r); if (a > bestA) { bestA = a; best = r } }
-    const cx = best.reduce((s, c) => s + c[0], 0) / best.length
-    const cy = best.reduce((s, c) => s + c[1], 0) / best.length
-    return [cx, cy]
-  }
-
-  // MapLibre expression: colour by (feature baseline + current global anomaly).
-  // The anomaly literal changes each year; base is fixed per feature in the GeoJSON.
-  function colorExpression(anomaly: number): unknown[] {
-    return [
-      'interpolate', ['linear'],
-      ['+', ['get', 'base'], anomaly],
-      -30, '#313695',
-      -15, '#4575b4',
-      -5,  '#74add1',
-      5,   '#e0f3f8',
-      15,  '#ffffbf',
-      22,  '#fdae61',
-      28,  '#d73027',
-      38,  '#a50026',
-    ]
   }
 
   // --- Event-mode marker helpers ---
@@ -160,11 +84,11 @@
   let hoverPopup: import('maplibre-gl').Popup | null = null
   // Keyed by event id so $effect can open the popup when the timeline is clicked.
   let eventPopupMap: Map<string, import('maplibre-gl').Popup> = new Map()
-  // $state so Svelte re-renders label text when the year changes — no MapLibre involvement.
-  let currentAnomaly = $state(0)
+  // $state so Svelte re-renders label text when the value changes — no MapLibre involvement.
+  let currentValue = $state(0)
   // Fixed centroid positions computed once; HTML overlay positions recomputed on map move.
-  let allCentroids: Array<{ name: string; base: number; area: number; lng: number; lat: number }> = []
-  let labelOverlays = $state<Array<{ name: string; base: number; lng: number; lat: number; x: number; y: number }>>([])
+  let allCentroids: Array<{ name: string; area: number; lng: number; lat: number }> = []
+  let labelOverlays = $state<Array<{ name: string; lng: number; lat: number; x: number; y: number }>>([])
 
   function updateLabelPositions() {
     if (!map) return
@@ -180,11 +104,10 @@
       .filter((l) => l.x > -20 && l.x < W + 20 && l.y > -20 && l.y < H + 20)
   }
 
-  function applyAnomaly(anomaly: number) {
-    if (!map) return
-    currentAnomaly = anomaly
-    map.setPaintProperty('temperature-fill', 'fill-color', colorExpression(anomaly))
-    // Label text is derived in the template from currentAnomaly — no MapLibre update needed.
+  function applyValue(value: number) {
+    if (!map || !story.choropleth) return
+    currentValue = value
+    map.setPaintProperty('choropleth-fill', 'fill-color', buildColorExpression(value, story.choropleth))
   }
 
   onMount(async () => {
@@ -202,61 +125,53 @@
     map.on('load', async () => {
       if (!map) return
 
-      if (isChoropleth) {
-        // Tag each feature with its latitude-derived baseline temperature
-        const geoJson = await fetch(
-          'https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson'
-        ).then((r) => r.json())
-        type RawFeature = { geometry: { type: string; coordinates: unknown }; properties: Record<string, unknown> }
-        geoJson.features = geoJson.features.map((f: RawFeature) => {
-          const name = f.properties.name as string | undefined
-          const base = baselineTemp(Math.abs(centroidLat(f)), name)
-          const area = featureArea(f)
-          return { ...f, properties: { ...f.properties, base, area } }
-        })
+      if (isChoropleth && story.choropleth) {
+        const cfg = story.choropleth
+        type AugFeature = { properties: Record<string, unknown> }
+
+        // GeoJSON is pre-augmented by the backend (base, area, lat, lng in properties).
+        const geoJson = await fetch(BASE + cfg.geoJsonUrl).then((r) => r.json())
 
         // Fill layer — purely paint-driven, source data never changes after load.
-        map.addSource('world-land', { type: 'geojson', data: geoJson })
+        map.addSource('choropleth-source', { type: 'geojson', data: geoJson })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        map.addLayer({ id: 'temperature-fill', type: 'fill', source: 'world-land',
-          paint: { 'fill-color': colorExpression(0) as any, 'fill-opacity': 0.75 } })
+        map.addLayer({ id: 'choropleth-fill', type: 'fill', source: 'choropleth-source',
+          paint: { 'fill-color': buildColorExpression(0, cfg) as any, 'fill-opacity': 0.75 } })
 
-        // Labels are HTML overlays (see template) — no MapLibre symbol layer.
-        // Compute one centroid per country from the largest polygon ring.
-        allCentroids = (geoJson.features as RawFeature[]).map((f) => {
-          const [lng, lat] = largestRingCentroid(f)
-          return {
-            name: f.properties.name as string,
-            base: f.properties.base as number,
-            area: f.properties.area as number,
-            lng, lat,
-          }
-        })
+        // Centroids come from feature properties — no geometry computation needed here.
+        allCentroids = (geoJson.features as AugFeature[]).map((f) => ({
+          name: f.properties.name as string,
+          area: f.properties.area as number,
+          lat: f.properties.lat as number,
+          lng: f.properties.lng as number,
+        }))
         updateLabelPositions()
         map.on('move', updateLabelPositions)
 
-        // Tooltip — fill layer has no symbol layer on top, so mousemove fires cleanly.
+        // Tooltip
         hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
 
-        map.on('mousemove', 'temperature-fill', (e) => {
+        map.on('mousemove', 'choropleth-fill', (e) => {
           if (!map || !e.features?.[0]) return
           map.getCanvas().style.cursor = 'crosshair'
           const props = e.features[0].properties as Record<string, unknown>
-          const base = (props.base as number) ?? 0
-          const temp = (Math.round((base + currentAnomaly) * 10) / 10).toFixed(1)
+          const lat = (props.lat as number) ?? 0
+          const display = computeDisplayValue(currentValue, cfg, lat)
+          const sign = display >= 0 ? '+' : ''
+          const unit = cfg.unit ?? ''
           const name = (props.name as string) ?? ''
           hoverPopup!
             .setLngLat(e.lngLat)
-            .setHTML(`<div style="font-family:'Spectral',Georgia,serif;font-size:12px"><strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:500;color:#e4d8bc">${name}</strong><br><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4a582">${temp}°C</span></div>`)
+            .setHTML(`<div style="font-family:'Spectral',Georgia,serif;font-size:12px"><strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:500;color:#e4d8bc">${name}</strong><br><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4a582">${sign}${display.toFixed(2)}${unit}</span></div>`)
             .addTo(map)
         })
-        map.on('mouseleave', 'temperature-fill', () => {
+        map.on('mouseleave', 'choropleth-fill', () => {
           if (map) map.getCanvas().style.cursor = ''
           hoverPopup?.remove()
         })
 
         const current = get(selectedEvent)
-        if (current?.value !== undefined) applyAnomaly(current.value)
+        if (current?.value !== undefined) applyValue(current.value)
       } else {
         for (const event of story.events) {
           if (!event.location || event.location.type !== 'point') continue
@@ -315,8 +230,8 @@
 
     if (isChoropleth) {
       if (!ev || ev.value === undefined) return
-      if (!map.isStyleLoaded() || !map.getLayer('temperature-fill')) return
-      applyAnomaly(ev.value)
+      if (!map.isStyleLoaded() || !map.getLayer('choropleth-fill')) return
+      applyValue(ev.value)
     } else {
       if (!ev || !ev.location) return
       const coords = ev.location.coordinates as [number, number]
@@ -333,8 +248,10 @@
   <div bind:this={container} class="w-full h-full"></div>
   {#if isChoropleth}
     {#each labelOverlays as label (label.name)}
+      {@const display = story.choropleth ? computeDisplayValue(currentValue, story.choropleth, label.lat) : currentValue}
+      {@const unit = story.choropleth?.unit ?? ''}
       <span class="country-label" style="left:{label.x.toFixed(0)}px;top:{label.y.toFixed(0)}px">
-        {(label.base + currentAnomaly).toFixed(1)}°C
+        {display >= 0 ? '+' : ''}{display.toFixed(1)}{unit}
       </span>
     {/each}
   {/if}

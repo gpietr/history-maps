@@ -5,9 +5,6 @@
 
   let { story }: { story: Story } = $props()
 
-  // 1951-1980 global mean surface temperature baseline (NASA GISTEMP)
-  const BASELINE = 14.0
-
   // SVG coordinate system
   const W = 1000
   const H = 110
@@ -21,13 +18,14 @@
       .filter((e) => e.value !== undefined)
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-    const absValues = sorted.map((e) => BASELINE + e.value!)
-    const minVal = Math.min(...absValues)
-    const maxVal = Math.max(...absValues)
+    // Work in anomaly space (values are already anomalies relative to 1951–1980)
+    const minVal = Math.min(...sorted.map((e) => e.value!))
+    const maxVal = Math.max(...sorted.map((e) => e.value!))
     const startMs = new Date(story.timeRange.start).getTime()
     const endMs = new Date(story.timeRange.end).getTime()
     const valueRange = maxVal - minVal
-    const zeroY = PAD.top + ((maxVal - BASELINE) / valueRange) * plotH
+    // Y position of the baseline (anomaly = 0)
+    const zeroY = PAD.top + (maxVal / valueRange) * plotH
 
     function xOf(e: StoryEvent) {
       return PAD.left + ((new Date(e.timestamp).getTime() - startMs) / (endMs - startMs)) * plotW
@@ -36,7 +34,7 @@
       return PAD.top + ((maxVal - v) / valueRange) * plotH
     }
 
-    const pts = sorted.map((e) => ({ x: xOf(e), y: yOf(BASELINE + e.value!), event: e }))
+    const pts = sorted.map((e) => ({ x: xOf(e), y: yOf(e.value!), event: e }))
 
     const linePath = 'M ' + pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' L ')
 
@@ -46,7 +44,7 @@
       ` L ${pts[pts.length - 1].x.toFixed(1)},${zeroY.toFixed(1)} Z`
 
     const decades = sorted.filter((e) => new Date(e.timestamp).getFullYear() % 20 === 0)
-    const yTicks = [13.5, 14.0, 14.5, 15.0].filter((v) => v > minVal - 0.1 && v < maxVal + 0.1)
+    const yTicks = [-0.5, 0, 0.5, 1.0, 1.5].filter((v) => v > minVal - 0.05 && v < maxVal + 0.05)
 
     return { sorted, minVal, maxVal, startMs, endMs, valueRange, zeroY, pts, linePath, areaPath, decades, yTicks, xOf, yOf }
   })
@@ -108,7 +106,7 @@
 
   let current = $derived($selectedEvent)
 
-  function fmt(anomaly: number) { return (BASELINE + anomaly).toFixed(2) + '°C' }
+  function fmt(anomaly: number) { return (anomaly >= 0 ? '+' : '') + anomaly.toFixed(2) + '°C' }
 </script>
 
 <div class="chart-wrap">
@@ -126,7 +124,7 @@
       <span class="anomaly" class:warm={current.value >= 0} class:cool={current.value < 0}>
         {fmt(current.value)}
       </span>
-      <span class="label">global mean surface temp</span>
+      <span class="label">anomaly vs 1951–1980 baseline</span>
     {/if}
   </div>
 
@@ -188,7 +186,7 @@
       <text
         x={PAD.left - 3} y={computed.yOf(v) + 3}
         text-anchor="end" font-size="7" fill="#5e5244" font-family="IBM Plex Mono, monospace"
-      >{v >= 0 ? '+' : ''}{v.toFixed(1)}</text>
+      >{v > 0 ? '+' : ''}{v.toFixed(1)}</text>
       <line
         x1={PAD.left - 1} y1={computed.yOf(v)}
         x2={PAD.left + 2} y2={computed.yOf(v)}
