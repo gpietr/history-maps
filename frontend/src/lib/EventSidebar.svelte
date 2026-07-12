@@ -6,7 +6,7 @@
   let { story }: { story: Story } = $props()
 
   let open = $state(false)
-  let tileRefs: Record<string, HTMLButtonElement> = {}
+  let tileRefs: Record<string, HTMLButtonElement> = $state({})
 
   onMount(() => {
     open = window.innerWidth >= 1024
