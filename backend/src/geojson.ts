@@ -95,3 +95,21 @@ export async function getAugmentedWorldGeoJson(): Promise<object> {
   cached = geoJson
   return geoJson
 }
+
+const VALID_YEARS = new Set([
+  '100','200','300','400','500','600','700','800','900','1000','1100','1200','1279','1300','1400',
+  '1492','1500','1530','1600','1650','1700','1715',
+  '1783','1800','1815','1880','1900','1914','1920','1930','1938','1945','1960','1994','2000','2010',
+])
+const historicalCache = new Map<string, object>()
+
+export async function getHistoricalGeoJson(year: string): Promise<object | null> {
+  if (!VALID_YEARS.has(year)) return null
+  if (historicalCache.has(year)) return historicalCache.get(year)!
+
+  const url = `https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_${year}.geojson`
+  const raw = await fetch(url)
+  const geoJson = await raw.json() as object
+  historicalCache.set(year, geoJson)
+  return geoJson
+}

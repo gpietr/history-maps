@@ -223,7 +223,12 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .tile.active .desc { color: var(--fg-mid); }
+  .tile.active .desc {
+    color: var(--fg-mid);
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    overflow: visible;
+  }
 
   .cat {
     font-family: var(--font-mono);

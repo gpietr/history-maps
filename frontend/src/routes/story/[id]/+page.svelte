@@ -84,7 +84,7 @@
   </header>
 
   <div class="content-area">
-    {#if data.story.displayMode !== 'choropleth'}
+    {#if data.story.displayMode !== 'choropleth' || data.story.choropleth?.valueFormula === 'political'}
       <EventSidebar story={data.story} />
     {/if}
 
@@ -96,7 +96,7 @@
   </div>
 
   <div class="timeline-area">
-    {#if data.story.displayMode === 'choropleth'}
+    {#if data.story.displayMode === 'choropleth' && data.story.choropleth?.valueFormula !== 'political'}
       <ChartTimeline story={data.story} />
     {:else}
       <Timeline story={data.story} />

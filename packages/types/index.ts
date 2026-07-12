@@ -7,10 +7,13 @@ export interface ChoroplethConfig {
    * How to derive the per-feature display value from the selected event's `.value`.
    * 'direct'       — same value for every feature (uniform colour shift)
    * 'localAnomaly' — value × polar-amplification(lat), amp = 1 + 2×|lat|/90
+   * 'political'    — categorical: each feature property [eraKey] → polity name → colour
    */
-  valueFormula: 'direct' | 'localAnomaly'
+  valueFormula: 'direct' | 'localAnomaly' | 'political'
   /** Unit appended to label text, e.g. '°C' */
   unit?: string
+  /** Polity name → hex colour, used in 'political' mode */
+  polities?: Record<string, string>
 }
 
 export interface Story {
@@ -45,5 +48,7 @@ export interface StoryEvent {
   }
   category?: string
   value?: number
+  /** For 'political' choropleth: which GeoJSON feature property to read (e.g. 'era_1914') */
+  eraKey?: string
   media?: { type: 'image' | 'video'; url: string }[]
 }

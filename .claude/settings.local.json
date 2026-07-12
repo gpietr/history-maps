@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/geojson/political/1880)",
+      "Bash(ps -o pid,lstart,cmd -p 15635,37725)",
+      "Bash(curl -s http://localhost:3000/stories)",
+      "Bash(curl -s \"https://api.github.com/repos/aourednik/historical-basemaps/contents/geojson\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/aourednik/historical-basemaps/master/geojson/world_2010.geojson\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://api.github.com/repos/aourednik/historical-basemaps/git/trees/master?recursive=1\")",
+      "Bash(curl -s http://localhost:3000/stories/world-politics)",
+      "Bash(~/.bun/bin/bun run *)",
+      "Bash(curl -s -o /dev/null -w \"frontend:%{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"backend:%{http_code}\\\\n\" http://localhost:3000/stories)",
+      "Skill(run)",
+      "Bash(find / -iname \"chromium-cli*\" -maxdepth 6)",
+      "Read(//tmp/claude-1000/bundled-skills/**)",
+      "Read(//tmp/claude-1000/bundled-skills/2.1.205/**)",
+      "Bash(python3 -c \"import playwright\")",
+      "Bash(npx --yes playwright --version)",
+      "Bash(~/.bun/bin/bunx playwright *)",
+      "Read(//tmp/**)"
+    ]
+  }
+}

@@ -34,6 +34,37 @@
     return ['interpolate', ['linear'], inputExpr, ...cfg.colorStops.flat()]
   }
 
+  // Deterministic name -> colour, so any polity without an explicit entry still gets
+  // a stable, distinct colour instead of falling back to flat grey — and the same
+  // name always hashes to the same colour, so it stays consistent across era changes.
+  function hashColor(name: string): string {
+    let h = 2166136261
+    for (let i = 0; i < name.length; i++) {
+      h ^= name.charCodeAt(i)
+      h = Math.imul(h, 16777619)
+    }
+    const hue = Math.abs(h) % 360
+    return `hsl(${hue}, 42%, 40%)`
+  }
+
+  // Build a MapLibre match expression for categorical (political) mode.
+  // Reads the SUBJECTO property (from aourednik historical-basemaps GeoJSON) and maps it to a colour.
+  // Explicit entries from cfg.polities win; every other name found in the current era's
+  // features gets a deterministic hashed colour. Rebuilt on every era change since the
+  // set of names present can change, but names never remap to a different colour.
+  function buildPoliticalExpression(cfg: ChoroplethConfig, features: { properties?: Record<string, unknown> }[]): unknown[] {
+    const explicit = cfg.polities ?? {}
+    const seen = new Set(Object.keys(explicit))
+    const pairs = Object.entries(explicit).flatMap(([name, color]) => [name, color])
+    for (const f of features) {
+      const name = f.properties?.SUBJECTO as string | undefined
+      if (!name || seen.has(name)) continue
+      seen.add(name)
+      pairs.push(name, hashColor(name))
+    }
+    return ['match', ['get', 'SUBJECTO'], ...pairs, '#6B6B6B']
+  }
+
   // Mirror of the MapLibre formula in plain JS — used for tooltip and label text.
   function computeDisplayValue(value: number, cfg: ChoroplethConfig, lat: number): number {
     switch (cfg.valueFormula) {
@@ -84,8 +115,10 @@
   let hoverPopup: import('maplibre-gl').Popup | null = null
   // Keyed by event id so $effect can open the popup when the timeline is clicked.
   let eventPopupMap: Map<string, import('maplibre-gl').Popup> = new Map()
-  // $state so Svelte re-renders label text when the value changes — no MapLibre involvement.
+  // $state so Svelte re-renders label text when the value changes.
   let currentValue = $state(0)
+  // Incremented on each political-era fetch; stale responses are discarded.
+  let fetchSerial = 0
   // Fixed centroid positions computed once; HTML overlay positions recomputed on map move.
   let allCentroids: Array<{ name: string; area: number; lng: number; lat: number }> = []
   let labelOverlays = $state<Array<{ name: string; lng: number; lat: number; x: number; y: number }>>([])
@@ -104,10 +137,28 @@
       .filter((l) => l.x > -20 && l.x < W + 20 && l.y > -20 && l.y < H + 20)
   }
 
-  function applyValue(value: number) {
+  async function applyPoliticalEra(ev: StoryEvent, cfg: ChoroplethConfig) {
+    if (!ev.eraKey) return
+    const serial = ++fetchSerial
+    const url = `${BASE}${cfg.geoJsonUrl}/${ev.eraKey}`
+    const geoJson = await fetch(url).then((r) => r.json())
+    if (serial !== fetchSerial || !map) return  // superseded by a newer click
+    const source = map.getSource('choropleth-source') as import('maplibre-gl').GeoJSONSource
+    source.setData(geoJson)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map.setPaintProperty('choropleth-fill', 'fill-color', buildPoliticalExpression(cfg, geoJson.features) as any)
+  }
+
+  function applyEvent(ev: StoryEvent) {
     if (!map || !story.choropleth) return
-    currentValue = value
-    map.setPaintProperty('choropleth-fill', 'fill-color', buildColorExpression(value, story.choropleth))
+    const cfg = story.choropleth
+    currentValue = ev.value ?? 0
+    if (cfg.valueFormula === 'political') {
+      applyPoliticalEra(ev, cfg)  // fire-and-forget; stale results are discarded via fetchSerial
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setPaintProperty('choropleth-fill', 'fill-color', buildColorExpression(ev.value ?? 0, cfg) as any)
+    }
   }
 
   onMount(async () => {
@@ -129,24 +180,36 @@
         const cfg = story.choropleth
         type AugFeature = { properties: Record<string, unknown> }
 
-        // GeoJSON is pre-augmented by the backend (base, area, lat, lng in properties).
-        const geoJson = await fetch(BASE + cfg.geoJsonUrl).then((r) => r.json())
+        // For political mode: fetch the first era's historical GeoJSON by year.
+        // For other modes: fetch the single augmented GeoJSON.
+        const firstEvent = get(selectedEvent) ?? story.events[0]
+        const initialUrl = cfg.valueFormula === 'political'
+          ? `${BASE}${cfg.geoJsonUrl}/${firstEvent?.eraKey ?? ''}`
+          : `${BASE}${cfg.geoJsonUrl}`
+        const geoJson = await fetch(initialUrl).then((r) => r.json())
 
-        // Fill layer — purely paint-driven, source data never changes after load.
+        // Political mode: SUBJECTO → colour, rebuilt on every era change (see applyPoliticalEra).
+        // Other modes: numeric interpolation updated via setPaintProperty.
+        const colorExpr = cfg.valueFormula === 'political'
+          ? buildPoliticalExpression(cfg, geoJson.features)
+          : buildColorExpression(0, cfg)
+
         map.addSource('choropleth-source', { type: 'geojson', data: geoJson })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         map.addLayer({ id: 'choropleth-fill', type: 'fill', source: 'choropleth-source',
-          paint: { 'fill-color': buildColorExpression(0, cfg) as any, 'fill-opacity': 0.75 } })
+          paint: { 'fill-color': colorExpr as any, 'fill-opacity': 0.75 } })
 
-        // Centroids come from feature properties — no geometry computation needed here.
-        allCentroids = (geoJson.features as AugFeature[]).map((f) => ({
-          name: f.properties.name as string,
-          area: f.properties.area as number,
-          lat: f.properties.lat as number,
-          lng: f.properties.lng as number,
-        }))
-        updateLabelPositions()
-        map.on('move', updateLabelPositions)
+        // Centroids (for numeric anomaly labels only — not used in political mode).
+        if (cfg.valueFormula !== 'political') {
+          allCentroids = (geoJson.features as AugFeature[]).map((f) => ({
+            name: f.properties.name as string,
+            area: f.properties.area as number,
+            lat: f.properties.lat as number,
+            lng: f.properties.lng as number,
+          }))
+          updateLabelPositions()
+          map.on('move', updateLabelPositions)
+        }
 
         // Tooltip
         hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
@@ -155,14 +218,19 @@
           if (!map || !e.features?.[0]) return
           map.getCanvas().style.cursor = 'crosshair'
           const props = e.features[0].properties as Record<string, unknown>
-          const lat = (props.lat as number) ?? 0
-          const display = computeDisplayValue(currentValue, cfg, lat)
-          const sign = display >= 0 ? '+' : ''
-          const unit = cfg.unit ?? ''
-          const name = (props.name as string) ?? ''
+          const name = ((props.NAME ?? props.name) as string) ?? ''
+          let valueLabel: string
+          if (cfg.valueFormula === 'political') {
+            valueLabel = (props.SUBJECTO as string) ?? 'Independent'
+          } else {
+            const lat = (props.lat as number) ?? 0
+            const display = computeDisplayValue(currentValue, cfg, lat)
+            const sign = display >= 0 ? '+' : ''
+            valueLabel = `${sign}${display.toFixed(2)}${cfg.unit ?? ''}`
+          }
           hoverPopup!
             .setLngLat(e.lngLat)
-            .setHTML(`<div style="font-family:'Spectral',Georgia,serif;font-size:12px"><strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:500;color:#e4d8bc">${name}</strong><br><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4a582">${sign}${display.toFixed(2)}${unit}</span></div>`)
+            .setHTML(`<div style="font-family:'Spectral',Georgia,serif;font-size:12px"><strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:500;color:#e4d8bc">${name}</strong><br><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4a582">${valueLabel}</span></div>`)
             .addTo(map)
         })
         map.on('mouseleave', 'choropleth-fill', () => {
@@ -170,8 +238,8 @@
           hoverPopup?.remove()
         })
 
-        const current = get(selectedEvent)
-        if (current?.value !== undefined) applyValue(current.value)
+        const current = get(selectedEvent) ?? story.events[0]
+        if (current) applyEvent(current)
       } else {
         for (const event of story.events) {
           if (!event.location || event.location.type !== 'point') continue
@@ -229,9 +297,10 @@
     if (!map) return
 
     if (isChoropleth) {
-      if (!ev || ev.value === undefined) return
+      if (!ev) return
       if (!map.isStyleLoaded() || !map.getLayer('choropleth-fill')) return
-      applyValue(ev.value)
+      if (story.choropleth?.valueFormula !== 'political' && ev.value === undefined) return
+      applyEvent(ev)
     } else {
       if (!ev || !ev.location) return
       const coords = ev.location.coordinates as [number, number]
@@ -246,7 +315,7 @@
 
 <div class="map-root">
   <div bind:this={container} class="w-full h-full"></div>
-  {#if isChoropleth}
+  {#if isChoropleth && story.choropleth?.valueFormula !== 'political'}
     {#each labelOverlays as label (label.name)}
       {@const display = story.choropleth ? computeDisplayValue(currentValue, story.choropleth, label.lat) : currentValue}
       {@const unit = story.choropleth?.unit ?? ''}
