@@ -1,7 +1,10 @@
 <script lang="ts">
   import type { PageData } from './$types'
+  import type { StyleSpecification } from 'maplibre-gl'
   import Map from '$lib/Map.svelte'
   import Timeline from '$lib/Timeline.svelte'
+  import ChartTimeline from '$lib/ChartTimeline.svelte'
+  import EventSidebar from '$lib/EventSidebar.svelte'
 
   let { data }: { data: PageData } = $props()
 
@@ -16,16 +19,18 @@
 
   let activeStyle = $state<StyleKey>('physical')
 
-  function esriStyle(serviceUrl: string, attribution: string) {
+  function esriStyle(serviceUrl: string, attribution: string, maxzoom = 19) {
     return {
       version: 8 as const,
+      // Required for symbol/text layers added on top of raster tiles
+      glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
       sources: {
         esri: {
           type: 'raster' as const,
           tiles: [serviceUrl],
           tileSize: 256,
           attribution,
-          maxzoom: 19,
+          maxzoom,
         },
       },
       layers: [{ id: 'esri-base', type: 'raster' as const, source: 'esri' }],
@@ -33,15 +38,18 @@
   }
 
   const STYLE_MAP = {
-    // Pure physical geography — no city names, no roads, no political borders
+    // Pure physical geography — no city names, no roads, no political borders.
+    // Tile service caps at zoom 8; MapLibre overzooms the zoom-8 tiles beyond that.
     physical: esriStyle(
       'https://services.arcgisonline.com/arcgis/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}',
-      'Tiles © Esri, DeLorme, NAVTEQ'
+      'Tiles © Esri, DeLorme, NAVTEQ',
+      8
     ),
     // Classic National Geographic atlas style — muted colors, minimal labels
     natgeo: esriStyle(
       'https://services.arcgisonline.com/arcgis/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}',
-      'Tiles © Esri, National Geographic'
+      'Tiles © Esri, National Geographic',
+      16
     ),
     // True-color satellite imagery — terrain is timeless even if roads aren't
     satellite: esriStyle(
@@ -52,14 +60,14 @@
     modern: 'https://tiles.openfreemap.org/styles/liberty',
   }
 
-  function resolvedStyle(key: StyleKey): string | object {
-    return STYLE_MAP[key]
+  function resolvedStyle(key: StyleKey): string | StyleSpecification {
+    return STYLE_MAP[key] as string | StyleSpecification
   }
 </script>
 
 <div class="story-layout">
   <header class="story-header">
-    <a href="/" class="back-link">← Stories</a>
+    <a href="/" class="back-link">← Archive</a>
     <h1 class="story-title">{data.story.title}</h1>
     <p class="story-desc">{data.story.description}</p>
     <div class="style-switcher">
@@ -75,14 +83,24 @@
     </div>
   </header>
 
-  <div class="map-area">
-    {#key activeStyle}
-      <Map story={data.story} styleOverride={resolvedStyle(activeStyle) as string} />
-    {/key}
+  <div class="content-area">
+    {#if data.story.displayMode !== 'choropleth'}
+      <EventSidebar story={data.story} />
+    {/if}
+
+    <div class="map-area">
+      {#key activeStyle}
+        <Map story={data.story} styleOverride={resolvedStyle(activeStyle) as string} />
+      {/key}
+    </div>
   </div>
 
   <div class="timeline-area">
-    <Timeline story={data.story} />
+    {#if data.story.displayMode === 'choropleth'}
+      <ChartTimeline story={data.story} />
+    {:else}
+      <Timeline story={data.story} />
+    {/if}
   </div>
 </div>
 
@@ -92,13 +110,13 @@
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
-    background: #0d1117;
+    background: var(--bg);
   }
 
   .story-header {
-    padding: 8px 16px;
-    border-bottom: 1px solid #30363d;
-    background: #161b22;
+    padding: 7px 16px;
+    border-bottom: 1px solid var(--border-dim);
+    background: var(--surface);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -106,30 +124,36 @@
   }
 
   .back-link {
-    color: #8b949e;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-mid);
     text-decoration: none;
-    font-size: 13px;
     white-space: nowrap;
     transition: color 0.15s;
   }
 
   .back-link:hover {
-    color: #58a6ff;
+    color: var(--brass);
   }
 
   .story-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #e6edf3;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--fg);
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: 0.02em;
   }
 
   .story-desc {
-    font-size: 12px;
-    color: #8b949e;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    color: var(--fg-mid);
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -140,39 +164,49 @@
 
   .style-switcher {
     display: flex;
-    gap: 4px;
+    gap: 0;
     flex-shrink: 0;
-    background: #0d1117;
-    padding: 3px;
-    border-radius: 8px;
-    border: 1px solid #30363d;
+    background: var(--bg);
+    padding: 2px;
+    border: 1px solid var(--border);
   }
 
   .style-btn {
     padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 500;
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
     background: transparent;
-    color: #8b949e;
+    color: var(--fg-dim);
     transition: background 0.15s, color 0.15s;
   }
 
   .style-btn:hover {
-    color: #e6edf3;
-    background: #21262d;
+    color: var(--fg);
+    background: var(--raised);
   }
 
   .style-btn.active {
-    background: #21262d;
-    color: #e6edf3;
+    background: var(--raised);
+    color: var(--fg);
+    border-left: 2px solid var(--brass);
+  }
+
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .map-area {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   .timeline-area {

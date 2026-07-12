@@ -2,6 +2,7 @@ export interface Story {
   id: string
   title: string
   description: string
+  displayMode?: 'events' | 'choropleth'
   map: {
     center: [number, number]
     zoom: number

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Story, StoryEvent } from '@chronomap/types'
+  import type { Story, StoryEvent } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
 
   let { story }: { story: Story } = $props()
@@ -18,9 +18,9 @@
     return CATEGORY_COLORS[event.category ?? ''] ?? '#6b7280'
   }
 
-  const start = new Date(story.timeRange.start).getTime()
-  const end = new Date(story.timeRange.end).getTime()
-  const range = end - start
+  const start = $derived(new Date(story.timeRange.start).getTime())
+  const end = $derived(new Date(story.timeRange.end).getTime())
+  const range = $derived(end - start)
 
   function positionOf(event: StoryEvent) {
     const t = new Date(event.timestamp).getTime()
@@ -42,8 +42,8 @@
   }
 
   // Sorted events for display
-  const sorted = [...story.events].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  const sorted = $derived(
+    [...story.events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   )
 </script>
 
@@ -85,32 +85,33 @@
 
 <style>
   .timeline-container {
-    padding: 12px 24px 16px;
-    background: #161b22;
-    border-top: 1px solid #30363d;
+    padding: 10px 24px 14px;
+    background: var(--surface);
+    border-top: 1px solid var(--border-dim);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 7px;
   }
 
   .timeline-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 11px;
-    color: #8b949e;
   }
 
   .timeline-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #e6edf3;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--fg-mid);
+    letter-spacing: 0.04em;
   }
 
   .timeline-date {
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--fg-dim);
+    letter-spacing: 0.04em;
   }
 
   .timeline-track {
@@ -124,17 +125,16 @@
     position: absolute;
     left: 0;
     right: 0;
-    height: 2px;
-    background: #30363d;
-    border-radius: 1px;
+    height: 1px;
+    background: var(--border);
   }
 
   .event-dot {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    border: 2px solid rgba(228, 216, 188, 0.25);
     cursor: pointer;
     transform: translateX(-50%);
     transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -144,36 +144,44 @@
 
   .event-dot:hover {
     transform: translateX(-50%) scale(1.4);
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(196, 152, 78, 0.2);
+    border-color: var(--brass);
   }
 
   .event-dot.selected {
     transform: translateX(-50%) scale(1.5);
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
+    border-color: rgba(228, 216, 188, 0.9);
+    box-shadow: 0 0 0 3px rgba(196, 152, 78, 0.25);
   }
 
   .event-info {
-    font-size: 13px;
-    color: #e6edf3;
+    font-size: 0.8rem;
+    color: var(--fg);
     display: flex;
     align-items: center;
     gap: 10px;
-    min-height: 20px;
+    min-height: 18px;
   }
 
   .event-info.muted {
-    color: #484f58;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--fg-dim);
     font-style: italic;
+    letter-spacing: 0.04em;
   }
 
   .event-date {
-    color: #8b949e;
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--brass);
     white-space: nowrap;
+    letter-spacing: 0.04em;
   }
 
   .event-name {
-    font-weight: 600;
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: 0.01em;
   }
 </style>

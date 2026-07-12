@@ -1,5 +1,5 @@
 {
-  "name": "@chronomap/types",
+  "name": "@fact-o-map/types",
   "version": "0.0.1",
   "main": "./index.ts",
   "exports": {

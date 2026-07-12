@@ -1,5 +1,5 @@
 {
-  "name": "chronomap",
+  "name": "fact-o-map",
   "private": true,
   "workspaces": ["packages/*", "frontend", "backend"],
   "scripts": {

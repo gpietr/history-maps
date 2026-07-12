@@ -1,4 +1,4 @@
-# ChronoMap
+# Fact-o-Map
 
 A map storytelling platform — events placed in time and space. Use cases: historical campaigns, biographies, climate data.
 
@@ -16,7 +16,7 @@ Bun is at `~/.bun/bin/bun` (not on PATH by default in this environment).
 ## Monorepo layout
 
 ```
-packages/types/     # Shared Story + StoryEvent interfaces — import as @chronomap/types
+packages/types/     # Shared Story + StoryEvent interfaces — import as @fact-o-map/types
 frontend/           # SvelteKit app — port 5173
 backend/            # Elysia API — port 3000
 ```

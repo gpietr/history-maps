@@ -1,4 +1,4 @@
-import type { Story } from '@chronomap/types'
+import type { Story } from '@fact-o-map/types'
 
 const BASE = 'http://localhost:3000'
 
