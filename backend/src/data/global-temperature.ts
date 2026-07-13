@@ -56,7 +56,7 @@ const temperatureStory: Story = {
       [ 7,    '#67001f'],
     ],
   },
-  map: { center: [0, 20], zoom: 1.5 },
+  map: { center: [0, 20], zoom: 1.5, defaultStyle: 'satellite' },
   timeRange: { start: '1880-01-01T00:00:00Z', end: '2023-12-31T00:00:00Z' },
   events: GISTEMP.map(([year, value]) => ({
     id: `temp-${year}`,

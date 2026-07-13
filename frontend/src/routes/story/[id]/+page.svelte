@@ -1,12 +1,33 @@
 <script lang="ts">
   import type { PageData } from './$types'
   import type { StyleSpecification } from 'maplibre-gl'
+  import { page } from '$app/state'
+  import { goto } from '$app/navigation'
   import Map from '$lib/Map.svelte'
   import Timeline from '$lib/Timeline.svelte'
   import ChartTimeline from '$lib/ChartTimeline.svelte'
   import EventSidebar from '$lib/EventSidebar.svelte'
+  import { selectedEvent } from '$lib/stores'
 
   let { data }: { data: PageData } = $props()
+
+  // Deep link: adopt ?event=<id> from the URL (covers direct loads and story switches).
+  $effect(() => {
+    const eventId = page.url.searchParams.get('event')
+    const match = eventId ? data.story.events.find((e) => e.id === eventId) : undefined
+    selectedEvent.set(match ?? null)
+  })
+
+  // Keep the URL in sync with the selection so it stays shareable/bookmarkable.
+  $effect(() => {
+    const ev = $selectedEvent
+    const current = page.url.searchParams.get('event')
+    if ((ev?.id ?? null) === current) return
+    const url = new URL(page.url)
+    if (ev) url.searchParams.set('event', ev.id)
+    else url.searchParams.delete('event')
+    goto(url, { replaceState: true, keepFocus: true, noScroll: true })
+  })
 
   const STYLES = [
     { label: 'Physical', value: 'physical' },
@@ -18,6 +39,11 @@
   type StyleKey = (typeof STYLES)[number]['value']
 
   let activeStyle = $state<StyleKey>('physical')
+
+  // Each story starts on its own default base-map style; re-adopt it when switching stories.
+  $effect(() => {
+    activeStyle = data.story.map.defaultStyle ?? 'physical'
+  })
 
   function esriStyle(serviceUrl: string, attribution: string, maxzoom = 19) {
     return {

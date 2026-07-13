@@ -19,7 +19,18 @@
       "Bash(python3 -c \"import playwright\")",
       "Bash(npx --yes playwright --version)",
       "Bash(~/.bun/bin/bunx playwright *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/geojson/political/2000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/geojson/political/2010)",
+      "Bash(curl -s -o /dev/null -w \"no-event: %{http_code}\\\\n\" \"http://localhost:5173/story/world-politics\")",
+      "Bash(curl -s -o /dev/null -w \"with-event: %{http_code}\\\\n\" \"http://localhost:5173/story/world-politics?event=era-1900\")",
+      "Bash(curl -s -o /dev/null -w \"bad-event: %{http_code}\\\\n\" \"http://localhost:5173/story/world-politics?event=does-not-exist\")",
+      "Read(//home/grzesiek/.cache/ms-playwright/**)",
+      "Bash(find / -maxdepth 4 -iname \"*playwright*\" -type d)",
+      "Bash(cat src/app.html)",
+      "Bash(ls -la static)",
+      "Bash(python3 -c \"import PIL; print\\(PIL.__version__\\)\")",
+      "Bash(curl *)"
     ]
   }
 }

@@ -28,6 +28,8 @@ export interface Story {
     bearing?: number
     pitch?: number
     styleUrl?: string
+    /** Which base-map style the switcher should start on for this story */
+    defaultStyle?: 'physical' | 'natgeo' | 'satellite' | 'modern'
   }
   timeRange: {
     start: string

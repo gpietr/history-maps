@@ -8,6 +8,7 @@ export const story: Story = {
     map: {
       center: [-1.5, 52.2],
       zoom: 6,
+      defaultStyle: 'modern',
     },
     timeRange: {
       start: '1912-06-23T00:00:00Z',

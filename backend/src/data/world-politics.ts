@@ -14,7 +14,7 @@ export const worldPoliticsStory: Story = {
     colorStops: [],  // unused in political mode
     polities: POLITY_COLORS,
   },
-  map: { center: [15, 20], zoom: 1.5 },
+  map: { center: [15, 20], zoom: 1.5, defaultStyle: 'physical' },
   timeRange: { start: '0100-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z' },
   events: [
     {
@@ -321,15 +321,6 @@ export const worldPoliticsStory: Story = {
       description:
         'The USSR dissolved in 1991, producing 15 new states. Yugoslavia has fragmented. South Africa holds its first democratic elections. The modern state system is nearly complete.',
       timestamp: '1994-04-27T00:00:00Z',
-      category: 'politics',
-    },
-    {
-      id: 'era-2000',
-      eraKey: '2000',
-      title: '2000 — Post-Soviet World',
-      description:
-        'Germany has reunified (1990) and the USSR\'s fifteen successor states are a decade old. The European Union is taking shape. Yugoslavia\'s wars of the 1990s have produced new Balkan states.',
-      timestamp: '2000-01-01T00:00:00Z',
       category: 'politics',
     },
     {

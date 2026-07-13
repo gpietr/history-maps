@@ -9,6 +9,7 @@ export const story: Story = {
       center: [-0.85, 49.38],
       zoom: 9,
       pitch: 30,
+      defaultStyle: 'natgeo',
     },
     timeRange: {
       start: '1944-06-06T00:00:00Z',
