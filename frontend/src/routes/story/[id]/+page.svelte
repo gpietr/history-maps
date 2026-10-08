@@ -46,6 +46,8 @@
   // overridden by the style switcher. Derived (not set in an $effect) so <Map> mounts once
   // with the right style instead of mounting with 'physical' and being immediately remounted.
   let activeStyle = $derived<StyleKey>(data.story.map.defaultStyle ?? 'physical')
+  // Kept across style switches and story changes; flat by default.
+  let globe = $state(false)
 
   function esriStyle(serviceUrl: string, attribution: string, maxzoom = 19) {
     return {
@@ -109,6 +111,15 @@
         </button>
       {/each}
     </div>
+    <button
+      class="style-btn globe-btn"
+      class:active={globe}
+      aria-pressed={globe}
+      title={globe ? 'Switch to flat map' : 'Switch to 3D globe'}
+      onclick={() => (globe = !globe)}
+    >
+      Globe
+    </button>
   </header>
 
   <div class="content-area">
@@ -118,7 +129,7 @@
 
     <div class="map-area">
       {#key activeStyle}
-        <Map story={data.story} styleOverride={resolvedStyle(activeStyle) as string} />
+        <Map story={data.story} styleOverride={resolvedStyle(activeStyle) as string} {globe} />
       {/key}
     </div>
   </div>
@@ -221,6 +232,12 @@
     background: var(--raised);
     color: var(--fg);
     border-left: 2px solid var(--brass);
+  }
+
+  /* Same look as a style button, framed on its own since it's a toggle, not one of the styles */
+  .globe-btn {
+    flex-shrink: 0;
+    border: 1px solid var(--border);
   }
 
   .content-area {

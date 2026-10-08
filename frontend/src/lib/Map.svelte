@@ -11,7 +11,12 @@
   import { colorFor } from './categories'
   import { formatEventDate } from './format'
 
-  let { story, styleOverride = undefined }: { story: Story; styleOverride?: string | StyleSpecification } = $props()
+  let { story, styleOverride = undefined, globe = false }: {
+    story: Story
+    styleOverride?: string | StyleSpecification
+    /** Render on a 3D globe instead of the flat Mercator map */
+    globe?: boolean
+  } = $props()
 
   const isChoropleth = $derived(story.displayMode === 'choropleth')
 
@@ -119,6 +124,8 @@
   let fetchSerial = 0
   // Era shown (or being fetched), so events sharing an era don't re-download the same GeoJSON.
   let requestedEraKey: string | undefined
+  // Projections can only be set once the style has loaded; the globe $effect waits for it.
+  let styleReady = $state(false)
   // Set once the load handler has added layers and markers; the selection $effect waits for it.
   let ready = $state(false)
   // Fixed centroid positions computed once; HTML overlay positions recomputed on map move.
@@ -137,6 +144,15 @@
       .filter((c) => c.area >= threshold)
       .map((c) => { const { x, y } = map!.project([c.lng, c.lat]); return { ...c, x, y } })
       .filter((l) => l.x > -20 && l.x < W + 20 && l.y > -20 && l.y < H + 20)
+      .filter((l) => !globe || !isOnFarSide(l))
+  }
+
+  // On the globe, project() also returns screen positions for points on the far side. Mapping the
+  // pixel back with unproject() hits the visible surface instead, so a far-side point doesn't round-trip.
+  function isOnFarSide(l: { lng: number; lat: number; x: number; y: number }) {
+    const back = map!.unproject([l.x, l.y])
+    const dLng = Math.abs(((back.lng - l.lng + 540) % 360) - 180)
+    return Math.abs(back.lat - l.lat) > 1 || dLng > 1
   }
 
   async function applyPoliticalEra(ev: StoryEvent, cfg: ChoroplethConfig) {
@@ -228,6 +244,8 @@
       pitch: story.map.pitch ?? 0,
     })
 
+    map.on('style.load', () => { styleReady = true })
+
     map.on('load', async () => {
       if (!map) return
 
@@ -267,6 +285,9 @@
           }))
           updateLabelPositions()
           map.on('move', updateLabelPositions)
+          // Switching globe/flat (or MapLibre's own globe→flat blend when zooming) moves every
+          // point on screen without a 'move' event.
+          map.on('projectiontransition', updateLabelPositions)
         }
 
         // Tooltip
@@ -319,6 +340,15 @@
     hoverPopup?.remove()
     map?.remove()
     map = null
+  })
+
+  // Toggled in place (no remount): markers, layers and the camera survive the switch.
+  $effect(() => {
+    const projection = globe ? 'globe' : 'mercator'
+    if (!styleReady || !map) return
+    map.setProjection({ type: projection })
+    // Reposition HTML labels once the new projection has drawn (they also depend on `globe`).
+    map.once('render', updateLabelPositions)
   })
 
   $effect(() => {
