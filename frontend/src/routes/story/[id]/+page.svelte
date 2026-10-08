@@ -3,11 +3,11 @@
   import type { StyleSpecification } from 'maplibre-gl'
   import { page } from '$app/state'
   import { goto } from '$app/navigation'
-  import Map from '$lib/Map.svelte'
-  import Timeline from '$lib/Timeline.svelte'
-  import ChartTimeline from '$lib/ChartTimeline.svelte'
-  import EventSidebar from '$lib/EventSidebar.svelte'
-  import { selectedEvent } from '$lib/stores'
+  import Map from '#lib/Map.svelte'
+  import Timeline from '#lib/Timeline.svelte'
+  import ChartTimeline from '#lib/ChartTimeline.svelte'
+  import EventSidebar from '#lib/EventSidebar.svelte'
+  import { selectedEvent } from '#lib/stores.ts'
 
   let { data }: { data: PageData } = $props()
 
@@ -23,10 +23,10 @@
     const ev = $selectedEvent
     const current = page.url.searchParams.get('event')
     if ((ev?.id ?? null) === current) return
-    const url = new URL(page.url)
+    const url = new URL(page.url.href)
     if (ev) url.searchParams.set('event', ev.id)
     else url.searchParams.delete('event')
-    goto(url, { replaceState: true, keepFocus: true, noScroll: true })
+    goto(url, { replace: true, reset: false })
   })
 
   const STYLES = [
@@ -38,12 +38,10 @@
 
   type StyleKey = (typeof STYLES)[number]['value']
 
-  let activeStyle = $state<StyleKey>('physical')
-
-  // Each story starts on its own default base-map style; re-adopt it when switching stories.
-  $effect(() => {
-    activeStyle = data.story.map.defaultStyle ?? 'physical'
-  })
+  // Each story starts on its own default base-map style; re-adopted when switching stories,
+  // overridden by the style switcher. Derived (not set in an $effect) so <Map> mounts once
+  // with the right style instead of mounting with 'physical' and being immediately remounted.
+  let activeStyle = $derived<StyleKey>(data.story.map.defaultStyle ?? 'physical')
 
   function esriStyle(serviceUrl: string, attribution: string, maxzoom = 19) {
     return {

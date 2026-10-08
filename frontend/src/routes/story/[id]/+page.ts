@@ -1,4 +1,4 @@
-import { getStory } from '$lib/api'
+import { getStory } from '#lib/api.ts'
 import type { PageLoad } from './$types'
 
 export const load: PageLoad = async ({ params, fetch }) => {

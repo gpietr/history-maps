@@ -2,6 +2,9 @@
   import { onMount, onDestroy } from 'svelte'
   import { get } from 'svelte/store'
   import type { StyleSpecification } from 'maplibre-gl'
+  // MapLibre 6 locates its worker relative to its own module URL, which breaks once Vite
+  // pre-bundles or hashes it. Emit the worker as an asset and hand MapLibre the URL instead.
+  import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
   import type { ChoroplethConfig, Story, StoryEvent } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
   import { BASE } from './api'
@@ -110,6 +113,7 @@
 
   // --- Component state ---
   let container: HTMLDivElement
+  let destroyed = false
   let map: import('maplibre-gl').Map | null = null
   let markers: import('maplibre-gl').Marker[] = []
   let hoverPopup: import('maplibre-gl').Popup | null = null
@@ -162,7 +166,10 @@
   }
 
   onMount(async () => {
-    const maplibregl = (await import('maplibre-gl')).default
+    const maplibregl = await import('maplibre-gl')
+    maplibregl.setWorkerUrl(maplibreWorkerUrl)
+    // The component may have been destroyed while the import was pending.
+    if (destroyed) return
 
     map = new maplibregl.Map({
       container,
@@ -285,6 +292,7 @@
   })
 
   onDestroy(() => {
+    destroyed = true
     markers.forEach((m) => m.remove())
     eventPopupMap.forEach((p) => p.remove())
     eventPopupMap.clear()

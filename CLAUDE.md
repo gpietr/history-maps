@@ -33,6 +33,8 @@ cd frontend && ~/.bun/bin/bun run dev
 
 Install from root: `~/.bun/bin/bun install`
 
+Backend port: `PORT` env var (default 3000). If you change it, point the frontend at it with `VITE_API_URL` (e.g. `VITE_API_URL=http://localhost:3001`).
+
 ## Key architecture decisions
 
 - **No DB yet** — stories live in `backend/src/data/stories.ts` as typed TS arrays. Adding SQLite later via `bun:sqlite`.
@@ -40,6 +42,8 @@ Install from root: `~/.bun/bin/bun install`
 - **Marker hover bug** — MapLibre owns the outer marker element's `transform` for positioning. Scale effects must go on an inner child element, not the wrapper. See `Map.svelte: makeMarkerEl`.
 - **Style switching** — uses `{#key activeStyle}` to remount `<Map>` on style change rather than `map.setStyle()`, because `setStyle` destroys all markers.
 - **Svelte 5** — uses `$props()`, `$state()`, `$derived()`, `$effect()`, `{@render children()}`. No Options API or `<slot>`.
+- **SvelteKit 3** — no `svelte.config.js`; adapter/preprocess are passed to `sveltekit({...})` in `vite.config.ts`. `$lib` is gone: import via `#lib/...` (subpath import in `frontend/package.json`) with explicit extensions, e.g. `#lib/api.ts`.
+- **MapLibre 6 worker** — `Map.svelte` imports the worker with `?url` and calls `setWorkerUrl()`; without it the map stays blank under Vite.
 
 ## Data model
 

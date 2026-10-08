@@ -3,6 +3,8 @@ import { cors } from '@elysiajs/cors'
 import { stories } from './data/stories'
 import { getAugmentedWorldGeoJson, getHistoricalGeoJson } from './geojson'
 
+const port = Number(process.env.PORT ?? 3000)
+
 const app = new Elysia()
   .use(cors())
   .get('/stories', () => stories)
@@ -17,8 +19,8 @@ const app = new Elysia()
     if (!geoJson) return status(404, { message: `No historical GeoJSON for year ${year}` })
     return geoJson
   })
-  .listen(3000)
+  .listen(port)
 
-console.log('Fact-o-Map backend running at http://localhost:3000')
+console.log(`Fact-o-Map backend running at http://localhost:${port}`)
 
 export type App = typeof app

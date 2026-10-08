@@ -1,6 +1,6 @@
 import type { Story } from '@fact-o-map/types'
 
-export const BASE = 'http://localhost:3000'
+export const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export async function getStories(fetch = globalThis.fetch): Promise<Story[]> {
   const res = await fetch(`${BASE}/stories`)
