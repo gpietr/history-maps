@@ -13,6 +13,7 @@ export const worldPoliticsStory: Story = {
     valueFormula: 'political',
     colorStops: [],  // unused in political mode
     polities: POLITY_COLORS,
+    attribution: 'Borders: <a href="https://github.com/aourednik/historical-basemaps">historical-basemaps</a>',
   },
   map: { center: [15, 20], zoom: 1.5, defaultStyle: 'physical' },
   timeRange: { start: '0100-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z' },

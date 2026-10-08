@@ -4,6 +4,7 @@ import {story as dday } from './dday-normandy'
 import { temperatureStory } from './global-temperature'
 import { worldPoliticsStory } from './world-politics'
 import { romanEmpireStory } from './roman-empire'
+import { polandStory } from './poland'
 
 export const stories: Story[] = [
   dday,
@@ -11,4 +12,5 @@ export const stories: Story[] = [
   temperatureStory,
   worldPoliticsStory,
   romanEmpireStory,
+  polandStory,
 ]

@@ -252,7 +252,7 @@
           ? buildPoliticalExpression(cfg, geoJson.features)
           : buildColorExpression(0, cfg)
 
-        map.addSource('choropleth-source', { type: 'geojson', data: geoJson })
+        map.addSource('choropleth-source', { type: 'geojson', data: geoJson, attribution: cfg.attribution })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         map.addLayer({ id: 'choropleth-fill', type: 'fill', source: 'choropleth-source',
           paint: { 'fill-color': colorExpr as any, 'fill-opacity': 0.75 } })

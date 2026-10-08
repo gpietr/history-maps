@@ -6,9 +6,10 @@
     "start": "bun run src/index.ts"
   },
   "dependencies": {
-    "@fact-o-map/types": "workspace:*",
     "@elysiajs/cors": "^1.4.2",
-    "elysia": "^1.4.30"
+    "@fact-o-map/types": "workspace:*",
+    "elysia": "^1.4.30",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "bun-types": "^1.4.2"

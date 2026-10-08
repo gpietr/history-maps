@@ -92,6 +92,7 @@ export const romanEmpireStory: Story = {
     colorStops: [],  // unused in political mode
     polities: ROMAN_POLITIES,
     othersColor: 'rgba(70, 64, 54, 0.2)',
+    attribution: 'Borders: <a href="https://github.com/aourednik/historical-basemaps">historical-basemaps</a>',
   },
   map: { center: [20, 40], zoom: 3.3, defaultStyle: 'physical' },
   timeRange: { start: '-000760-01-01T00:00:00Z', end: '1470-01-01T00:00:00Z' },

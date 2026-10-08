@@ -14,6 +14,8 @@ export interface ChoroplethConfig {
   unit?: string
   /** Polity name → hex colour, used in 'political' mode */
   polities?: Record<string, string>
+  /** Credit for the GeoJSON data, shown in the map's attribution control */
+  attribution?: string
   /** 'political' mode: colour for polities not in `polities` (default: a distinct hashed colour each) */
   othersColor?: string
 }

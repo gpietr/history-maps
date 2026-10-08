@@ -39,6 +39,7 @@ Backend port: `PORT` env var (default 3000). If you change it, point the fronten
 
 - **No DB yet** — stories live in `backend/src/data/stories.ts` as typed TS arrays. Adding SQLite later via `bun:sqlite`.
 - **Map styles** — all use free Esri raster tiles (no API key). Default is World Physical Map (no city names, timeless). Style switcher: Physical / Atlas (NatGeo) / Satellite / Modern. Stadia Maps terrain available if `VITE_STADIA_API_KEY` is set in `frontend/.env.local`.
+- **Historical borders** — two sources for `displayMode: 'choropleth'` + `valueFormula: 'political'`: `/geojson/political/:year` (aourednik historical-basemaps, fixed snapshot years) and `/geojson/clio/:year` (Cliopatria, any year −3400…2024; Poland story). Cliopatria is ~170 MB, so it's downloaded once to `backend/.cache/` and per-year snapshots are extracted by a child process (`backend/src/cliopatria.ts`) — the server never parses the full file.
 - **Marker hover bug** — MapLibre owns the outer marker element's `transform` for positioning. Scale effects must go on an inner child element, not the wrapper. See `Map.svelte: makeMarkerEl`.
 - **Style switching** — uses `{#key activeStyle}` to remount `<Map>` on style change rather than `map.setStyle()`, because `setStyle` destroys all markers.
 - **Svelte 5** — uses `$props()`, `$state()`, `$derived()`, `$effect()`, `{@render children()}`. No Options API or `<slot>`.
