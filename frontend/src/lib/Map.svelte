@@ -117,6 +117,10 @@
   let currentValue = $state(0)
   // Incremented on each political-era fetch; stale responses are discarded.
   let fetchSerial = 0
+  // Era shown (or being fetched), so events sharing an era don't re-download the same GeoJSON.
+  let requestedEraKey: string | undefined
+  // Set once the load handler has added layers and markers; the selection $effect waits for it.
+  let ready = $state(false)
   // Fixed centroid positions computed once; HTML overlay positions recomputed on map move.
   let allCentroids: Array<{ name: string; area: number; lng: number; lat: number }> = []
   let labelOverlays = $state<Array<{ name: string; lng: number; lat: number; x: number; y: number }>>([])
@@ -136,11 +140,12 @@
   }
 
   async function applyPoliticalEra(ev: StoryEvent, cfg: ChoroplethConfig) {
-    if (!ev.eraKey) return
+    if (!ev.eraKey || ev.eraKey === requestedEraKey) return
+    requestedEraKey = ev.eraKey
     const serial = ++fetchSerial
     const url = `${BASE}${cfg.geoJsonUrl}/${ev.eraKey}`
     const geoJson = await fetch(url).then((r) => r.json())
-    if (serial !== fetchSerial || !map) return  // superseded by a newer click
+    if (serial !== fetchSerial || destroyed || !map) return  // superseded by a newer click, or unmounted
     const source = map.getSource('choropleth-source') as import('maplibre-gl').GeoJSONSource
     source.setData(geoJson)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -158,6 +163,8 @@
       map.setPaintProperty('choropleth-fill', 'fill-color', buildColorExpression(ev.value ?? 0, cfg) as any)
     }
   }
+
+  const stopPropagation = (e: Event) => e.stopPropagation()
 
   // Point markers with hover popups. Political maps get them too, drawn over the territory layer.
   function addEventMarkers(maplibregl: typeof import('maplibre-gl')) {
@@ -184,13 +191,17 @@
       const cancelHide = () => { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null } }
       const scheduleHide = () => { cancelHide(); hideTimer = setTimeout(() => popup.remove(), 180) }
 
-      el.addEventListener('mouseenter', () => { cancelHide(); popup.addTo(map!) })
+      el.addEventListener('mouseenter', () => { cancelHide(); hoverPopup?.remove(); popup.addTo(map!) })
       el.addEventListener('mouseleave', scheduleHide)
+      // Marker and popup sit inside the map container: keep their mouse moves from also
+      // triggering the choropleth territory tooltip underneath.
+      el.addEventListener('mousemove', stopPropagation)
       popup.on('open', () => {
         const popupEl = popup.getElement()
         if (popupEl) {
           popupEl.addEventListener('mouseenter', cancelHide)
           popupEl.addEventListener('mouseleave', scheduleHide)
+          popupEl.addEventListener('mousemove', stopPropagation)
         }
       })
 
@@ -227,10 +238,13 @@
         // For political mode: fetch the first era's historical GeoJSON by year.
         // For other modes: fetch the single augmented GeoJSON.
         const firstEvent = get(selectedEvent) ?? story.events[0]
+        if (cfg.valueFormula === 'political') requestedEraKey = firstEvent?.eraKey
         const initialUrl = cfg.valueFormula === 'political'
           ? `${BASE}${cfg.geoJsonUrl}/${firstEvent?.eraKey ?? ''}`
           : `${BASE}${cfg.geoJsonUrl}`
         const geoJson = await fetch(initialUrl).then((r) => r.json())
+        // The component may have been destroyed (e.g. style switch) while the fetch was pending.
+        if (destroyed || !map) return
 
         // Political mode: SUBJECTO → colour, rebuilt on every era change (see applyPoliticalEra).
         // Other modes: numeric interpolation updated via setPaintProperty.
@@ -282,8 +296,9 @@
           hoverPopup?.remove()
         })
 
-        const current = get(selectedEvent) ?? story.events[0]
-        if (current) applyEvent(current)
+        // Numeric modes start on the first event; political mode already fetched the right era above.
+        // A selected event is applied by the $effect once `ready` flips.
+        if (cfg.valueFormula !== 'political' && !get(selectedEvent) && story.events[0]) applyEvent(story.events[0])
 
         // Political borders are dense; a thin outline keeps neighbouring polities readable.
         if (cfg.valueFormula === 'political') {
@@ -292,6 +307,7 @@
         }
       }
       addEventMarkers(maplibregl)
+      ready = true
     })
   })
 
@@ -302,11 +318,12 @@
     eventPopupMap.clear()
     hoverPopup?.remove()
     map?.remove()
+    map = null
   })
 
   $effect(() => {
     const ev = $selectedEvent
-    if (!map || !ev) return
+    if (!ready || !map || !ev) return
 
     if (isChoropleth && map.getLayer('choropleth-fill')
         && (story.choropleth?.valueFormula === 'political' || ev.value !== undefined)) {

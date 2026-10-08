@@ -22,12 +22,15 @@ export function formatEventDate(ev: StoryEvent): string {
 
 const TWO_YEARS = 2 * 365.25 * 864e5
 
-/** Label for a [start, end) span: years for long spans, days for short ones (end shown inclusive). */
+/**
+ * Label for a [start, end) span: years for long spans, days for short ones. `end` is exclusive,
+ * so the label shows the span's last moment — a period ending at 1 Jan 2011 reads "… – 2010".
+ */
 export function formatRange(start: string, end: string): string {
   const s = new Date(start).getTime()
   const e = new Date(end).getTime()
-  if (e - s >= TWO_YEARS) return `${formatYear(start)} – ${formatYear(end)}`
   const last = new Date(e - 1).toISOString()
+  if (e - s >= TWO_YEARS) return `${formatYear(start)} – ${formatYear(last)}`
   const first = formatDate(start)
   return first === formatDate(last) ? first : `${first} – ${formatDate(last)}`
 }

@@ -3,6 +3,7 @@
   import type { StyleSpecification } from 'maplibre-gl'
   import { page } from '$app/state'
   import { goto } from '$app/navigation'
+  import { get } from 'svelte/store'
   import Map from '#lib/Map.svelte'
   import Timeline from '#lib/Timeline.svelte'
   import ChartTimeline from '#lib/ChartTimeline.svelte'
@@ -15,6 +16,9 @@
   $effect(() => {
     const eventId = page.url.searchParams.get('event')
     const match = eventId ? data.story.events.find((e) => e.id === eventId) : undefined
+    // The URL-sync effect below rewrites the URL on every selection, which re-runs this one;
+    // re-setting the same event would make the store notify again (objects always count as changed).
+    if (get(selectedEvent) === (match ?? null)) return
     selectedEvent.set(match ?? null)
   })
 

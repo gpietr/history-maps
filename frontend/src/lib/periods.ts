@@ -1,5 +1,9 @@
 import type { StoryEvent, StoryPeriod } from '@fact-o-map/types'
 
+export function sortByTime(events: StoryEvent[]): StoryEvent[] {
+  return [...events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+}
+
 export function periodOf(event: StoryEvent, periods: StoryPeriod[] = []): StoryPeriod | undefined {
   const t = new Date(event.timestamp).getTime()
   return periods.find((p) => t >= new Date(p.start).getTime() && t < new Date(p.end).getTime())

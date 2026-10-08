@@ -4,7 +4,7 @@
   import { selectedEvent } from './stores'
   import { colorFor } from './categories'
   import { formatEventDate, formatRange } from './format'
-  import { groupByPeriod } from './periods'
+  import { groupByPeriod, sortByTime } from './periods'
 
   let { story }: { story: Story } = $props()
 
@@ -15,15 +15,18 @@
     open = window.innerWidth >= 1024
   })
 
-  const sorted = $derived(
-    [...story.events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-  )
+  const sorted = $derived(sortByTime(story.events))
   const groups = $derived(groupByPeriod(sorted, story.periods))
 
   // Scroll selected tile into view when it changes.
   $effect(() => {
     const ev = $selectedEvent
-    if (ev && open) tileRefs[ev.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const tile = ev && open ? tileRefs[ev.id] : undefined
+    if (!tile) return
+    // Keep the tile clear of its sticky period header, whose height depends on the description.
+    const header = tile.closest('section')?.querySelector<HTMLElement>('.period')
+    tile.style.scrollMarginTop = `${header?.offsetHeight ?? 0}px`
+    tile.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
 </script>
 
@@ -208,8 +211,6 @@
 
   /* Event tile */
   .tile {
-    /* keep scrollIntoView clear of the sticky period header */
-    scroll-margin-top: 72px;
     display: flex;
     width: 100%;
     text-align: left;

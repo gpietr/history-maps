@@ -95,35 +95,36 @@ export const romanEmpireStory: Story = {
   },
   map: { center: [20, 40], zoom: 3.3, defaultStyle: 'physical' },
   timeRange: { start: '-000760-01-01T00:00:00Z', end: '1470-01-01T00:00:00Z' },
-  // Boundaries are chosen so each event lands in its era: `end` is exclusive, so e.g. the death
-  // of Marcus Aurelius (17 Mar 180) opens the crisis era rather than closing the Pax Romana.
+  // Boundaries sit on the turning-point dates (First Punic War, Gracchi, Augustus, Diocletian,
+  // Leo III, the 1204 sack) so each event lands in its era. `end` is exclusive: the death of
+  // Marcus Aurelius (17 Mar 180) opens the crisis era rather than closing the Pax Romana.
   periods: [
     {
       id: 'kingdom-early-republic',
       title: 'Kingdom & Early Republic',
       description: 'Seven kings, then a republic of consuls and Senate that fights its way to mastery of Italy.',
       start: '-000752-01-01T00:00:00Z',
-      end: '-000263-01-01T00:00:00Z',
+      end: '-000263-06-01T00:00:00Z',
     },
     {
       id: 'punic-wars',
       title: 'Punic Wars & Mediterranean Conquest',
       description: 'Three wars with Carthage and the defeat of the Hellenistic kingdoms make Rome master of the Mediterranean.',
-      start: '-000263-01-01T00:00:00Z',
-      end: '-000132-01-01T00:00:00Z',
+      start: '-000263-06-01T00:00:00Z',
+      end: '-000132-06-01T00:00:00Z',
     },
     {
       id: 'fall-of-republic',
       title: 'Fall of the Republic',
       description: 'Generals with private armies tear the Republic apart in a century of civil war.',
-      start: '-000132-01-01T00:00:00Z',
-      end: '-000026-01-01T00:00:00Z',
+      start: '-000132-06-01T00:00:00Z',
+      end: '-000026-01-16T00:00:00Z',
     },
     {
       id: 'pax-romana',
       title: 'Pax Romana',
       description: 'Two centuries of relative peace under the emperors; the empire reaches its greatest extent.',
-      start: '-000026-01-01T00:00:00Z',
+      start: '-000026-01-16T00:00:00Z',
       end: '0180-03-17T00:00:00Z',
     },
     {
@@ -131,13 +132,13 @@ export const romanEmpireStory: Story = {
       title: 'Iron & Rust: The Crisis',
       description: 'Civil wars, plague and invasions from Persia and across the Rhine and Danube; after 235 some 26 emperors rule in 50 years.',
       start: '0180-03-17T00:00:00Z',
-      end: '0284-01-01T00:00:00Z',
+      end: '0284-11-20T00:00:00Z',
     },
     {
       id: 'late-empire',
       title: 'Late Empire',
       description: 'Diocletian and Constantine rebuild the state, adopt Christianity and found a new capital in the East.',
-      start: '0284-01-01T00:00:00Z',
+      start: '0284-11-20T00:00:00Z',
       end: '0395-01-18T00:00:00Z',
     },
     {
@@ -152,20 +153,20 @@ export const romanEmpireStory: Story = {
       title: 'Early Byzantium',
       description: 'Justinian reconquers the West, then plague, Persia and the Arab conquests strip the empire to its core.',
       start: '0476-09-05T00:00:00Z',
-      end: '0717-01-01T00:00:00Z',
+      end: '0717-03-25T00:00:00Z',
     },
     {
       id: 'middle-byzantium',
       title: 'Middle Byzantium',
       description: 'A Greek, Orthodox empire survives the Arabs, peaks under Basil II, then loses Anatolia to the Turks.',
-      start: '0717-01-01T00:00:00Z',
-      end: '1204-01-01T00:00:00Z',
+      start: '0717-03-25T00:00:00Z',
+      end: '1204-04-13T00:00:00Z',
     },
     {
       id: 'late-byzantium',
       title: 'Last Centuries',
       description: 'Sacked by crusaders and encircled by the Ottomans, Byzantium shrinks to a city and a few outposts.',
-      start: '1204-01-01T00:00:00Z',
+      start: '1204-04-13T00:00:00Z',
       end: '1461-12-31T00:00:00Z',
     },
   ],

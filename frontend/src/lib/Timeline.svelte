@@ -3,7 +3,7 @@
   import { selectedEvent } from './stores'
   import { colorFor } from './categories'
   import { formatDate, formatEventDate, formatRange } from './format'
-  import { periodOf } from './periods'
+  import { periodOf, sortByTime } from './periods'
 
   let { story }: { story: Story } = $props()
 
@@ -29,9 +29,7 @@
   }
 
   // Sorted events for display
-  const sorted = $derived(
-    [...story.events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-  )
+  const sorted = $derived(sortByTime(story.events))
 
   // Clicking an era band jumps to its first event.
   function selectPeriod(period: StoryPeriod) {

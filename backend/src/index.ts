@@ -3,7 +3,8 @@ import { cors } from '@elysiajs/cors'
 import { stories } from './data/stories'
 import { getAugmentedWorldGeoJson, getHistoricalGeoJson } from './geojson'
 
-const port = Number(process.env.PORT ?? 3000)
+// `||` (not `??`) so an empty or non-numeric PORT also falls back instead of binding port 0/NaN.
+const port = Number(process.env.PORT) || 3000
 
 const app = new Elysia()
   .use(cors())

@@ -2,6 +2,7 @@
   import { onMount, onDestroy } from 'svelte'
   import type { Story, StoryEvent } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
+  import { sortByTime } from './periods'
 
   let { story }: { story: Story } = $props()
 
@@ -14,9 +15,7 @@
 
   // All story-derived computations in one reactive block to avoid cascading $derived warnings
   const computed = $derived.by(() => {
-    const sorted = [...story.events]
-      .filter((e) => e.value !== undefined)
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    const sorted = sortByTime(story.events.filter((e) => e.value !== undefined))
 
     // Work in anomaly space (values are already anomalies relative to 1951–1980)
     const minVal = Math.min(...sorted.map((e) => e.value!))
