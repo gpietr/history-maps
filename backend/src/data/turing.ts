@@ -14,6 +14,29 @@ export const story: Story = {
       start: '1912-06-23T00:00:00Z',
       end: '1954-06-07T00:00:00Z',
     },
+    periods: [
+      {
+        id: 'early-life',
+        title: 'Education & Theory',
+        description: 'From Sherborne to Cambridge and Princeton, where he defines what it means to compute.',
+        start: '1912-06-23T00:00:00Z',
+        end: '1939-09-01T00:00:00Z',
+      },
+      {
+        id: 'war',
+        title: 'The War',
+        description: 'Six years of secret codebreaking at Bletchley Park.',
+        start: '1939-09-01T00:00:00Z',
+        end: '1945-09-02T00:00:00Z',
+      },
+      {
+        id: 'computers',
+        title: 'Building the Computer',
+        description: 'Designing real machines, asking whether they can think — and persecution for his sexuality.',
+        start: '1945-09-02T00:00:00Z',
+        end: '1954-06-08T00:00:00Z',
+      },
+    ],
     events: [
       {
         id: 'born-london',

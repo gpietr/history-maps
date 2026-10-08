@@ -8,6 +8,8 @@
   import type { ChoroplethConfig, Story, StoryEvent } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
   import { BASE } from './api'
+  import { colorFor } from './categories'
+  import { formatEventDate } from './format'
 
   let { story, styleOverride = undefined }: { story: Story; styleOverride?: string | StyleSpecification } = $props()
 
@@ -53,12 +55,13 @@
   // Build a MapLibre match expression for categorical (political) mode.
   // Reads the SUBJECTO property (from aourednik historical-basemaps GeoJSON) and maps it to a colour.
   // Explicit entries from cfg.polities win; every other name found in the current era's
-  // features gets a deterministic hashed colour. Rebuilt on every era change since the
-  // set of names present can change, but names never remap to a different colour.
+  // features gets cfg.othersColor if set, else a deterministic hashed colour. Rebuilt on every
+  // era change since the set of names present can change, but names never remap to a different colour.
   function buildPoliticalExpression(cfg: ChoroplethConfig, features: { properties?: Record<string, unknown> }[]): unknown[] {
     const explicit = cfg.polities ?? {}
-    const seen = new Set(Object.keys(explicit))
     const pairs = Object.entries(explicit).flatMap(([name, color]) => [name, color])
+    if (cfg.othersColor) return ['match', ['get', 'SUBJECTO'], ...pairs, cfg.othersColor]
+    const seen = new Set(Object.keys(explicit))
     for (const f of features) {
       const name = f.properties?.SUBJECTO as string | undefined
       if (!name || seen.has(name)) continue
@@ -78,16 +81,7 @@
     }
   }
 
-  // --- Event-mode marker helpers ---
-  const CATEGORY_COLORS: Record<string, string> = {
-    landing: '#3b82f6', battle: '#ef4444', victory: '#22c55e',
-    military: '#a855f7', life: '#f59e0b', education: '#06b6d4', achievement: '#f97316',
-  }
-
-  function colorFor(event: StoryEvent) {
-    return CATEGORY_COLORS[event.category ?? ''] ?? '#6b7280'
-  }
-
+  // --- Event marker helpers ---
   function makeMarkerEl(event: StoryEvent) {
     const wrapper = document.createElement('div')
     wrapper.style.cssText = 'width: 14px; height: 14px; cursor: pointer;'
@@ -162,6 +156,49 @@
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setPaintProperty('choropleth-fill', 'fill-color', buildColorExpression(ev.value ?? 0, cfg) as any)
+    }
+  }
+
+  // Point markers with hover popups. Political maps get them too, drawn over the territory layer.
+  function addEventMarkers(maplibregl: typeof import('maplibre-gl')) {
+    for (const event of story.events) {
+      if (!event.location || event.location.type !== 'point') continue
+      const coords = event.location.coordinates as [number, number]
+      const el = makeMarkerEl(event)
+      const popup = new maplibregl.Popup({ offset: 16, closeButton: false, closeOnClick: false })
+        .setLngLat(coords)
+        .setHTML(`
+          <div>
+            <p style="margin:0 0 5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a0906e;text-transform:uppercase;letter-spacing:0.09em">
+              ${event.category ?? 'event'} · ${formatEventDate(event)}
+            </p>
+            <strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:15px;font-weight:500;line-height:1.25;color:#e4d8bc;display:block">${event.title}</strong>
+            ${event.description ? `<p style="margin:6px 0 0;font-family:'Spectral',Georgia,serif;font-size:12px;color:#a0906e;line-height:1.5">${event.description}</p>` : ''}
+          </div>
+        `)
+
+      eventPopupMap.set(event.id, popup)
+
+      // Show popup on hover; keep it open while the cursor is over the dot OR the popup.
+      let hideTimer: ReturnType<typeof setTimeout> | null = null
+      const cancelHide = () => { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null } }
+      const scheduleHide = () => { cancelHide(); hideTimer = setTimeout(() => popup.remove(), 180) }
+
+      el.addEventListener('mouseenter', () => { cancelHide(); popup.addTo(map!) })
+      el.addEventListener('mouseleave', scheduleHide)
+      popup.on('open', () => {
+        const popupEl = popup.getElement()
+        if (popupEl) {
+          popupEl.addEventListener('mouseenter', cancelHide)
+          popupEl.addEventListener('mouseleave', scheduleHide)
+        }
+      })
+
+      // Click still selects the event (sidebar highlight + flyTo).
+      el.addEventListener('click', () => selectedEvent.set(event))
+
+      const marker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map!)
+      markers.push(marker)
     }
   }
 
@@ -247,47 +284,14 @@
 
         const current = get(selectedEvent) ?? story.events[0]
         if (current) applyEvent(current)
-      } else {
-        for (const event of story.events) {
-          if (!event.location || event.location.type !== 'point') continue
-          const coords = event.location.coordinates as [number, number]
-          const el = makeMarkerEl(event)
-          const popup = new maplibregl.Popup({ offset: 16, closeButton: false, closeOnClick: false })
-            .setLngLat(coords)
-            .setHTML(`
-              <div>
-                <p style="margin:0 0 5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a0906e;text-transform:uppercase;letter-spacing:0.09em">
-                  ${event.category ?? 'event'} · ${new Date(event.timestamp).getFullYear()}
-                </p>
-                <strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:15px;font-weight:500;line-height:1.25;color:#e4d8bc;display:block">${event.title}</strong>
-                ${event.description ? `<p style="margin:6px 0 0;font-family:'Spectral',Georgia,serif;font-size:12px;color:#a0906e;line-height:1.5">${event.description}</p>` : ''}
-              </div>
-            `)
 
-          eventPopupMap.set(event.id, popup)
-
-          // Show popup on hover; keep it open while the cursor is over the dot OR the popup.
-          let hideTimer: ReturnType<typeof setTimeout> | null = null
-          const cancelHide = () => { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null } }
-          const scheduleHide = () => { cancelHide(); hideTimer = setTimeout(() => popup.remove(), 180) }
-
-          el.addEventListener('mouseenter', () => { cancelHide(); popup.addTo(map!) })
-          el.addEventListener('mouseleave', scheduleHide)
-          popup.on('open', () => {
-            const popupEl = popup.getElement()
-            if (popupEl) {
-              popupEl.addEventListener('mouseenter', cancelHide)
-              popupEl.addEventListener('mouseleave', scheduleHide)
-            }
-          })
-
-          // Click still selects the event (sidebar highlight + flyTo).
-          el.addEventListener('click', () => selectedEvent.set(event))
-
-          const marker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map)
-          markers.push(marker)
+        // Political borders are dense; a thin outline keeps neighbouring polities readable.
+        if (cfg.valueFormula === 'political') {
+          map.addLayer({ id: 'choropleth-line', type: 'line', source: 'choropleth-source',
+            paint: { 'line-color': 'rgba(30, 22, 14, 0.55)', 'line-width': 0.6 } })
         }
       }
+      addEventMarkers(maplibregl)
     })
   })
 
@@ -302,17 +306,18 @@
 
   $effect(() => {
     const ev = $selectedEvent
-    if (!map) return
+    if (!map || !ev) return
 
-    if (isChoropleth) {
-      if (!ev) return
-      if (!map.isStyleLoaded() || !map.getLayer('choropleth-fill')) return
-      if (story.choropleth?.valueFormula !== 'political' && ev.value === undefined) return
+    if (isChoropleth && map.getLayer('choropleth-fill')
+        && (story.choropleth?.valueFormula === 'political' || ev.value !== undefined)) {
       applyEvent(ev)
-    } else {
-      if (!ev || !ev.location) return
+    }
+
+    if (ev.location?.type === 'point') {
       const coords = ev.location.coordinates as [number, number]
-      map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 10), duration: 1200 })
+      // Choropleth stories are continent-scale: pan without zooming in unless the event asks to.
+      const zoom = ev.location.zoom ?? (isChoropleth ? map.getZoom() : Math.max(map.getZoom(), 10))
+      map.flyTo({ center: coords, zoom, duration: 1200 })
       // Close any open popup then show the one for this event.
       // Covers timeline and sidebar clicks; for hover clicks it just re-shows the same popup.
       eventPopupMap.forEach((p) => p.remove())

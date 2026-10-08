@@ -1,41 +1,28 @@
 <script lang="ts">
-  import type { Story, StoryEvent } from '@fact-o-map/types'
+  import type { Story, StoryEvent, StoryPeriod } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
+  import { colorFor } from './categories'
+  import { formatDate, formatEventDate, formatRange } from './format'
+  import { periodOf } from './periods'
 
   let { story }: { story: Story } = $props()
-
-  const CATEGORY_COLORS: Record<string, string> = {
-    landing: '#3b82f6',
-    battle: '#ef4444',
-    victory: '#22c55e',
-    military: '#a855f7',
-    life: '#f59e0b',
-    education: '#06b6d4',
-    achievement: '#f97316',
-  }
-
-  function colorFor(event: StoryEvent) {
-    return CATEGORY_COLORS[event.category ?? ''] ?? '#6b7280'
-  }
 
   const start = $derived(new Date(story.timeRange.start).getTime())
   const end = $derived(new Date(story.timeRange.end).getTime())
   const range = $derived(end - start)
+  // Multi-decade stories label the track ends by year only.
+  const rangePrecision = $derived(range > 10 * 365.25 * 864e5 ? 'year' as const : 'day' as const)
 
-  function positionOf(event: StoryEvent) {
-    const t = new Date(event.timestamp).getTime()
-    return ((t - start) / range) * 100
+  function positionAt(iso: string) {
+    return ((new Date(iso).getTime() - start) / range) * 100
   }
 
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
+  function positionOf(event: StoryEvent) {
+    return positionAt(event.timestamp)
   }
 
   let current = $derived($selectedEvent)
+  const currentPeriod = $derived(current ? periodOf(current, story.periods) : undefined)
 
   function select(event: StoryEvent) {
     selectedEvent.set(event)
@@ -45,13 +32,19 @@
   const sorted = $derived(
     [...story.events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   )
+
+  // Clicking an era band jumps to its first event.
+  function selectPeriod(period: StoryPeriod) {
+    const first = sorted.find((ev) => periodOf(ev, [period]))
+    if (first) select(first)
+  }
 </script>
 
 <div class="timeline-container">
   <div class="timeline-header">
-    <span class="timeline-date">{formatDate(story.timeRange.start)}</span>
+    <span class="timeline-date">{formatDate(story.timeRange.start, rangePrecision)}</span>
     <span class="timeline-title">{story.title}</span>
-    <span class="timeline-date">{formatDate(story.timeRange.end)}</span>
+    <span class="timeline-date">{formatDate(story.timeRange.end, rangePrecision)}</span>
   </div>
 
   <div class="timeline-track">
@@ -73,9 +66,27 @@
     {/each}
   </div>
 
+  {#if story.periods?.length}
+    <div class="period-bands">
+      {#each story.periods as period (period.id)}
+        {@const left = Math.max(0, positionAt(period.start))}
+        {@const right = Math.min(100, positionAt(period.end))}
+        <button
+          class="period-band"
+          class:active={currentPeriod?.id === period.id}
+          style="left: {left}%; width: {right - left}%"
+          title="{period.title} ({formatRange(period.start, period.end)})"
+          onclick={() => selectPeriod(period)}
+        >
+          <span>{period.title}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
   {#if current}
     <div class="event-info">
-      <span class="event-date">{formatDate(current.timestamp)}</span>
+      <span class="event-date">{formatEventDate(current)}</span>
       <strong class="event-name">{current.title}</strong>
     </div>
   {:else}
@@ -152,6 +163,55 @@
     transform: translateX(-50%) scale(1.5);
     border-color: rgba(228, 216, 188, 0.9);
     box-shadow: 0 0 0 3px rgba(196, 152, 78, 0.25);
+  }
+
+  .period-bands {
+    position: relative;
+    height: 18px;
+    margin-top: -6px;
+  }
+
+  .period-band {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    padding: 0 5px;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-top: 2px solid var(--border-dim);
+    background: transparent;
+    cursor: pointer;
+    overflow: hidden;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .period-band span {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 16px;
+    color: var(--fg-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .period-band:hover {
+    background: var(--raised);
+  }
+  .period-band:hover span {
+    color: var(--fg-mid);
+  }
+
+  .period-band.active {
+    background: var(--brass-dim);
+    border-top-color: var(--brass);
+  }
+  .period-band.active span {
+    color: var(--brass);
   }
 
   .event-info {

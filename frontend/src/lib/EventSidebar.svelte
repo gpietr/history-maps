@@ -2,6 +2,9 @@
   import { onMount } from 'svelte'
   import type { Story, StoryEvent } from '@fact-o-map/types'
   import { selectedEvent } from './stores'
+  import { colorFor } from './categories'
+  import { formatEventDate, formatRange } from './format'
+  import { groupByPeriod } from './periods'
 
   let { story }: { story: Story } = $props()
 
@@ -12,24 +15,10 @@
     open = window.innerWidth >= 1024
   })
 
-  const CATEGORY_COLORS: Record<string, string> = {
-    landing: '#3b82f6', battle: '#ef4444', victory: '#22c55e',
-    military: '#a855f7', life: '#f59e0b', education: '#06b6d4', achievement: '#f97316',
-  }
-
-  function colorFor(ev: StoryEvent): string {
-    return CATEGORY_COLORS[ev.category ?? ''] ?? '#6b7280'
-  }
-
   const sorted = $derived(
     [...story.events].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   )
-
-  function formatDate(ts: string): string {
-    return new Date(ts).toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    })
-  }
+  const groups = $derived(groupByPeriod(sorted, story.periods))
 
   // Scroll selected tile into view when it changes.
   $effect(() => {
@@ -59,27 +48,42 @@
   <!-- Collapsible content -->
   <div class="content">
     <div class="list">
-      {#each sorted as ev}
-        {@const color = colorFor(ev)}
-        {@const active = $selectedEvent?.id === ev.id}
-        <button
-          bind:this={tileRefs[ev.id]}
-          class="tile"
-          class:active
-          onclick={() => selectedEvent.set(ev)}
-        >
-          <div class="accent" style="background:{color};opacity:{active ? 1 : 0.55}"></div>
-          <div class="body">
-            <time class="date">{formatDate(ev.timestamp)}</time>
-            <div class="title">{ev.title}</div>
-            {#if ev.description}
-              <p class="desc">{ev.description}</p>
-            {/if}
-            {#if ev.category}
-              <span class="cat" style="color:{color}">{ev.category}</span>
-            {/if}
-          </div>
-        </button>
+      {#each groups as group (group.events[0].id)}
+        <section>
+          {#if group.period}
+            <header class="period">
+              <div class="period-head">
+                <h2 class="period-title">{group.period.title}</h2>
+                <span class="period-range">{formatRange(group.period.start, group.period.end)}</span>
+              </div>
+              {#if group.period.description}
+                <p class="period-desc">{group.period.description}</p>
+              {/if}
+            </header>
+          {/if}
+          {#each group.events as ev}
+            {@const color = colorFor(ev)}
+            {@const active = $selectedEvent?.id === ev.id}
+            <button
+              bind:this={tileRefs[ev.id]}
+              class="tile"
+              class:active
+              onclick={() => selectedEvent.set(ev)}
+            >
+              <div class="accent" style="background:{color};opacity:{active ? 1 : 0.55}"></div>
+              <div class="body">
+                <time class="date">{formatEventDate(ev)}</time>
+                <div class="title">{ev.title}</div>
+                {#if ev.description}
+                  <p class="desc">{ev.description}</p>
+                {/if}
+                {#if ev.category}
+                  <span class="cat" style="color:{color}">{ev.category}</span>
+                {/if}
+              </div>
+            </button>
+          {/each}
+        </section>
       {/each}
     </div>
   </div>
@@ -160,8 +164,52 @@
     padding: 6px 0 24px;
   }
 
+  /* Period header — sticks to the top while its events scroll beneath it */
+  .period {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 12px 12px 9px 13px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border-dim);
+  }
+  .period-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .period-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--brass);
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+  .period-range {
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    color: var(--fg-dim);
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    text-transform: uppercase;
+  }
+  .period-desc {
+    margin: 4px 0 0;
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    font-style: italic;
+    color: var(--fg-mid);
+    line-height: 1.45;
+  }
+
   /* Event tile */
   .tile {
+    /* keep scrollIntoView clear of the sticky period header */
+    scroll-margin-top: 72px;
     display: flex;
     width: 100%;
     text-align: left;

@@ -15,6 +15,29 @@ export const story: Story = {
       start: '1944-06-06T00:00:00Z',
       end: '1944-08-25T00:00:00Z',
     },
+    periods: [
+      {
+        id: 'landings',
+        title: 'D-Day',
+        description: 'Airborne drops overnight, then five beach landings along 80 km of coast.',
+        start: '1944-06-06T00:00:00Z',
+        end: '1944-06-07T00:00:00Z',
+      },
+      {
+        id: 'bocage',
+        title: 'Battle of the Bocage',
+        description: 'Seven weeks of attritional fighting through the hedgerows to build up the lodgement and take a port.',
+        start: '1944-06-07T00:00:00Z',
+        end: '1944-07-25T00:00:00Z',
+      },
+      {
+        id: 'breakout',
+        title: 'Breakout & Liberation',
+        description: 'The front collapses after Operation Cobra; within a month the Allies are in Paris.',
+        start: '1944-07-25T00:00:00Z',
+        end: '1944-08-26T00:00:00Z',
+      },
+    ],
     events: [
       {
         id: 'airborne-drop',

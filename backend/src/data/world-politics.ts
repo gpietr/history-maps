@@ -16,6 +16,57 @@ export const worldPoliticsStory: Story = {
   },
   map: { center: [15, 20], zoom: 1.5, defaultStyle: 'physical' },
   timeRange: { start: '0100-01-01T00:00:00Z', end: '2010-12-31T00:00:00Z' },
+  periods: [
+    {
+      id: 'classical-empires',
+      title: 'Classical Empires',
+      description: 'Rome, Parthia and Han China dominate Eurasia — then all three fracture.',
+      start: '0100-01-01T00:00:00Z',
+      end: '0500-01-01T00:00:00Z',
+    },
+    {
+      id: 'faiths-and-caliphates',
+      title: 'Faiths & Caliphates',
+      description: 'Byzantium endures, Islam sweeps from Arabia to Iberia, Tang China flourishes and Charlemagne revives the Western empire.',
+      start: '0500-01-01T00:00:00Z',
+      end: '1000-01-01T00:00:00Z',
+    },
+    {
+      id: 'crusades-and-mongols',
+      title: 'Crusades & Mongols',
+      description: 'Crusader states in the Levant, then the largest contiguous land empire in history, from Korea to Hungary.',
+      start: '1000-01-01T00:00:00Z',
+      end: '1400-01-01T00:00:00Z',
+    },
+    {
+      id: 'exploration-gunpowder',
+      title: 'Exploration & Gunpowder Empires',
+      description: 'Ottomans, Mughals and Qing rise in Asia while European ships and settlers reach the Americas and beyond.',
+      start: '1400-01-01T00:00:00Z',
+      end: '1789-07-14T00:00:00Z',
+    },
+    {
+      id: 'revolutions-and-empires',
+      title: 'Revolutions & Empires',
+      description: 'Revolutions remake Europe and the Americas; industrial powers carve up Africa and Asia.',
+      start: '1789-07-14T00:00:00Z',
+      end: '1914-07-28T00:00:00Z',
+    },
+    {
+      id: 'world-wars',
+      title: 'World Wars',
+      description: 'Two global wars destroy the old empires of Europe and Asia.',
+      start: '1914-07-28T00:00:00Z',
+      end: '1945-09-02T00:00:00Z',
+    },
+    {
+      id: 'postwar',
+      title: 'Decolonisation & After',
+      description: 'Decolonisation multiplies the number of states; the Cold War ends with the break-up of the Soviet Union.',
+      start: '1945-09-02T00:00:00Z',
+      end: '2011-01-01T00:00:00Z',
+    },
+  ],
   events: [
     {
       id: 'era-100',

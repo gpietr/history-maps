@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { PageData } from './$types'
+  import { formatYear } from '#lib/format.ts'
 
   let { data }: { data: PageData } = $props()
 
   function formatDateRange(start: string, end: string) {
-    const s = new Date(start).getFullYear()
-    const e = new Date(end).getFullYear()
+    const s = formatYear(start)
+    const e = formatYear(end)
     return s === e ? `${s}` : `${s} – ${e}`
   }
 </script>

@@ -14,6 +14,8 @@ export interface ChoroplethConfig {
   unit?: string
   /** Polity name → hex colour, used in 'political' mode */
   polities?: Record<string, string>
+  /** 'political' mode: colour for polities not in `polities` (default: a distinct hashed colour each) */
+  othersColor?: string
 }
 
 export interface Story {
@@ -35,7 +37,19 @@ export interface Story {
     start: string
     end: string
   }
+  /** Named eras that group events in the sidebar and band the timeline */
+  periods?: StoryPeriod[]
   events: StoryEvent[]
+}
+
+export interface StoryPeriod {
+  id: string
+  title: string
+  description?: string
+  /** Inclusive */
+  start: string
+  /** Exclusive — an event exactly at `end` belongs to the next period */
+  end: string
 }
 
 export interface StoryEvent {
@@ -43,10 +57,14 @@ export interface StoryEvent {
   title: string
   description?: string
   timestamp: string
+  /** How precisely `timestamp` is known; 'year' hides day and month. Default 'day'. */
+  datePrecision?: 'day' | 'year'
   location?: {
     type: 'point' | 'area' | 'route'
     coordinates: [number, number] | [number, number][]
     radius?: number
+    /** Zoom level to fly to when the event is selected */
+    zoom?: number
   }
   category?: string
   value?: number
