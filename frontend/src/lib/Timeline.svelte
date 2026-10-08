@@ -109,6 +109,11 @@
   }
 
   .timeline-title {
+    min-width: 0;
+    padding: 0 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-family: var(--font-display);
     font-size: 0.75rem;
     font-weight: 500;
@@ -151,10 +156,19 @@
     outline: none;
   }
 
-  .event-dot:hover {
-    transform: translateX(-50%) scale(1.4);
-    box-shadow: 0 0 0 3px rgba(196, 152, 78, 0.2);
-    border-color: var(--brass);
+  /* Invisible hit area around the 11px dot, so it can be tapped with a finger */
+  .event-dot::before {
+    content: '';
+    position: absolute;
+    inset: -9px -4px;
+  }
+
+  @media (hover: hover) {
+    .event-dot:hover {
+      transform: translateX(-50%) scale(1.4);
+      box-shadow: 0 0 0 3px rgba(196, 152, 78, 0.2);
+      border-color: var(--brass);
+    }
   }
 
   .event-dot.selected {
@@ -197,11 +211,13 @@
     text-overflow: ellipsis;
   }
 
-  .period-band:hover {
-    background: var(--raised);
-  }
-  .period-band:hover span {
-    color: var(--fg-mid);
+  @media (hover: hover) {
+    .period-band:hover {
+      background: var(--raised);
+    }
+    .period-band:hover span {
+      color: var(--fg-mid);
+    }
   }
 
   .period-band.active {
@@ -241,5 +257,24 @@
     font-family: var(--font-display);
     font-weight: 500;
     letter-spacing: 0.01em;
+  }
+
+  @media (max-width: 720px) {
+    .timeline-container {
+      padding: 8px 14px 12px;
+    }
+    /* Already in the page header */
+    .timeline-title {
+      visibility: hidden;
+    }
+  }
+
+  @media (pointer: coarse) {
+    .period-bands {
+      height: 24px;
+    }
+    .period-band span {
+      line-height: 22px;
+    }
   }
 </style>

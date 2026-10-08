@@ -15,6 +15,15 @@
     open = window.innerWidth >= 1024
   })
 
+  // Must match the overlay breakpoint in the styles below.
+  const isOverlay = () => window.matchMedia('(max-width: 720px)').matches
+
+  function pick(ev: StoryEvent) {
+    selectedEvent.set(ev)
+    // As an overlay the list covers the map; get out of the way so the fly-to is visible.
+    if (isOverlay()) open = false
+  }
+
   const sorted = $derived(sortByTime(story.events))
   const groups = $derived(groupByPeriod(sorted, story.periods))
 
@@ -71,7 +80,7 @@
               bind:this={tileRefs[ev.id]}
               class="tile"
               class:active
-              onclick={() => selectedEvent.set(ev)}
+              onclick={() => pick(ev)}
             >
               <div class="accent" style="background:{color};opacity:{active ? 1 : 0.55}"></div>
               <div class="body">
@@ -136,9 +145,13 @@
     padding: 0;
     transition: background 0.15s, color 0.15s;
   }
-  .toggle:hover {
-    background: var(--hover);
-    color: var(--fg);
+  @media (hover: hover) {
+    .toggle:hover {
+      background: var(--hover);
+      color: var(--fg);
+    }
+    .tile:hover { background: var(--raised); }
+    .tile:hover .title { color: var(--fg); }
   }
   .toggle svg {
     width: 13px;
@@ -221,7 +234,6 @@
     padding: 0;
     transition: background 0.12s;
   }
-  .tile:hover { background: var(--raised); }
   .tile.active  { background: var(--raised); }
 
   .accent {
@@ -258,7 +270,6 @@
     line-height: 1.3;
   }
   .tile.active .title { color: var(--fg); }
-  .tile:hover .title { color: var(--fg); }
 
   .desc {
     font-family: var(--font-body);
@@ -287,4 +298,35 @@
     opacity: 0.7;
   }
   .tile.active .cat { opacity: 1; }
+
+  /* Phones: the rail stays in the layout, the open list floats over the map instead of squeezing it */
+  @media (max-width: 720px) {
+    .sidebar,
+    .sidebar.open {
+      position: relative;
+      z-index: 5;
+      width: 36px;
+      overflow: visible;
+    }
+    .toggle {
+      width: 30px;
+      height: 30px;
+    }
+    .content {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 36px;
+      width: min(300px, calc(100vw - 72px));
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      box-shadow: 8px 0 24px rgba(0, 0, 0, 0.5);
+      visibility: hidden;
+      transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+    }
+    .sidebar.open .content {
+      visibility: visible;
+      transition: opacity 0.15s ease;
+    }
+  }
 </style>

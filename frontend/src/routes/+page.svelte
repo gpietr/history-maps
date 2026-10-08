@@ -130,7 +130,7 @@
 
   .story-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
     gap: 1px;
     background: var(--border);
     border: 1px solid var(--border);
@@ -148,9 +148,17 @@
     transition: background 0.15s, border-color 0.15s;
   }
 
-  .story-card:hover {
-    background: var(--raised);
-    border-left-color: var(--brass);
+  @media (hover: hover) {
+    .story-card:hover {
+      background: var(--raised);
+      border-left-color: var(--brass);
+    }
+    .story-card:hover .card-title {
+      color: #f0e8d4;
+    }
+    .story-card:hover .card-cta {
+      opacity: 1;
+    }
   }
 
   .card-meta {
@@ -186,10 +194,6 @@
     transition: color 0.15s;
   }
 
-  .story-card:hover .card-title {
-    color: #f0e8d4;
-  }
-
   .card-desc {
     font-family: var(--font-body);
     font-size: 0.85rem;
@@ -214,7 +218,22 @@
     transition: opacity 0.15s;
   }
 
-  .story-card:hover .card-cta {
-    opacity: 1;
+  /* No hover on touch screens to reveal it, so always show it */
+  @media (hover: none) {
+    .card-cta {
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .site-header {
+      padding: 0 1rem;
+    }
+    .main {
+      padding: 2rem 1rem 3rem;
+    }
+    .story-card {
+      padding: 1.25rem;
+    }
   }
 </style>

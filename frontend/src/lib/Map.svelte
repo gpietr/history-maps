@@ -89,10 +89,12 @@
   // --- Event marker helpers ---
   function makeMarkerEl(event: StoryEvent) {
     const wrapper = document.createElement('div')
-    wrapper.style.cssText = 'width: 14px; height: 14px; cursor: pointer;'
+    // On touch screens the wrapper is a larger, invisible hit area centred on the 14px dot.
+    const hit = matchMedia('(pointer: coarse)').matches ? 32 : 14
+    wrapper.style.cssText = `width: ${hit}px; height: ${hit}px; cursor: pointer; display: flex; align-items: center; justify-content: center;`
     const dot = document.createElement('div')
     dot.style.cssText = `
-      width: 14px; height: 14px;
+      width: 14px; height: 14px; flex-shrink: 0;
       background: ${colorFor(event)};
       border: 2px solid rgba(255,255,255,0.8);
       border-radius: 50%;
@@ -221,8 +223,9 @@
         }
       })
 
-      // Click still selects the event (sidebar highlight + flyTo).
-      el.addEventListener('click', () => selectedEvent.set(event))
+      // Click still selects the event (sidebar highlight + flyTo). Kept from reaching the map,
+      // where it would also open the territory tooltip underneath.
+      el.addEventListener('click', (e) => { e.stopPropagation(); selectedEvent.set(event) })
 
       const marker = new maplibregl.Marker({ element: el }).setLngLat(coords).addTo(map!)
       markers.push(marker)
@@ -293,7 +296,8 @@
         // Tooltip
         hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 })
 
-        map.on('mousemove', 'choropleth-fill', (e) => {
+        // Hover on desktop; touch screens have no hover, so a tap shows the same tooltip.
+        const showTooltip = (e: import('maplibre-gl').MapLayerMouseEvent) => {
           if (!map || !e.features?.[0]) return
           map.getCanvas().style.cursor = 'crosshair'
           const props = e.features[0].properties as Record<string, unknown>
@@ -311,6 +315,12 @@
             .setLngLat(e.lngLat)
             .setHTML(`<div style="font-family:'Spectral',Georgia,serif;font-size:12px"><strong style="font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;font-weight:500;color:#e4d8bc">${name}</strong><br><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#f4a582">${valueLabel}</span></div>`)
             .addTo(map)
+        }
+        map.on('mousemove', 'choropleth-fill', showTooltip)
+        map.on('click', 'choropleth-fill', showTooltip)
+        // Tapping outside any territory (e.g. open sea) dismisses it.
+        map.on('click', (e) => {
+          if (map && !map.queryRenderedFeatures(e.point, { layers: ['choropleth-fill'] }).length) hoverPopup?.remove()
         })
         map.on('mouseleave', 'choropleth-fill', () => {
           if (map) map.getCanvas().style.cursor = ''

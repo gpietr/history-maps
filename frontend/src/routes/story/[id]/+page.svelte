@@ -148,6 +148,8 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    /* Mobile browsers count the space behind their toolbars in vh, hiding the timeline */
+    height: 100dvh;
     overflow: hidden;
     background: var(--bg);
   }
@@ -173,8 +175,11 @@
     transition: color 0.15s;
   }
 
-  .back-link:hover {
-    color: var(--brass);
+  /* Hover rules are scoped to real pointers so they don't stick after a tap on touch screens */
+  @media (hover: hover) {
+    .back-link:hover {
+      color: var(--brass);
+    }
   }
 
   .story-title {
@@ -223,9 +228,11 @@
     transition: background 0.15s, color 0.15s;
   }
 
-  .style-btn:hover {
-    color: var(--fg);
-    background: var(--raised);
+  @media (hover: hover) {
+    .style-btn:hover {
+      color: var(--fg);
+      background: var(--raised);
+    }
   }
 
   .style-btn.active {
@@ -241,6 +248,7 @@
   }
 
   .content-area {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: row;
@@ -256,5 +264,31 @@
 
   .timeline-area {
     flex-shrink: 0;
+  }
+
+  /* Phones: back link, title and globe on one row, the style switcher full width below */
+  @media (max-width: 720px) {
+    .story-header {
+      flex-wrap: wrap;
+      row-gap: 6px;
+      padding: 6px 12px 8px;
+    }
+    .story-title {
+      flex: 1;
+      min-width: 0;
+    }
+    .story-desc {
+      display: none;
+    }
+    .style-switcher {
+      order: 1;
+      width: 100%;
+    }
+    .style-switcher .style-btn {
+      flex: 1;
+    }
+    .style-btn {
+      min-height: 32px;
+    }
   }
 </style>

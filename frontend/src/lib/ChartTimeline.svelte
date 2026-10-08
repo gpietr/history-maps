@@ -6,11 +6,12 @@
 
   let { story }: { story: Story } = $props()
 
-  // SVG coordinate system
-  const W = 1000
+  // SVG coordinate system: one unit per CSS pixel. The width follows the rendered width, so the
+  // chart can stretch without squashing its text (which preserveAspectRatio="none" would do).
+  let W = $state(1000)
   const H = 110
   const PAD = { top: 10, right: 10, bottom: 22, left: 40 }
-  const plotW = W - PAD.left - PAD.right
+  const plotW = $derived(W - PAD.left - PAD.right)
   const plotH = H - PAD.top - PAD.bottom
 
   // All story-derived computations in one reactive block to avoid cascading $derived warnings
@@ -92,7 +93,14 @@
 
   let svgEl: SVGSVGElement
 
-  function onMouseMove(e: MouseEvent) {
+  // Pointer events cover mouse hover as well as touch/pen drags (captured on press so a drag
+  // keeps scrubbing when the finger leaves the chart).
+  function onPointerDown(e: PointerEvent) {
+    scrubTo(e)
+    if (e.pointerType !== 'mouse') svgEl.setPointerCapture(e.pointerId)
+  }
+
+  function scrubTo(e: PointerEvent) {
     const rect = svgEl.getBoundingClientRect()
     const mx = ((e.clientX - rect.left) / rect.width) * W
     let best = 0, bestDist = Infinity
@@ -127,12 +135,14 @@
     {/if}
   </div>
 
+  <div class="chart-box" bind:clientWidth={W}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <svg
     viewBox="0 0 {W} {H}"
     preserveAspectRatio="none"
     bind:this={svgEl}
-    onmousemove={onMouseMove}
+    onpointerdown={onPointerDown}
+    onpointermove={scrubTo}
     class="chart-svg"
   >
     <defs>
@@ -176,7 +186,7 @@
     {#each computed.decades as e}
       <text
         x={computed.xOf(e)} y={H - PAD.bottom + 12}
-        text-anchor="middle" font-size="8" fill="#5e5244" font-family="IBM Plex Mono, monospace"
+        text-anchor="middle" font-size="10" fill="#5e5244" font-family="IBM Plex Mono, monospace"
       >{new Date(e.timestamp).getFullYear()}</text>
     {/each}
 
@@ -184,7 +194,7 @@
     {#each computed.yTicks as v}
       <text
         x={PAD.left - 3} y={computed.yOf(v) + 3}
-        text-anchor="end" font-size="7" fill="#5e5244" font-family="IBM Plex Mono, monospace"
+        text-anchor="end" font-size="9" fill="#5e5244" font-family="IBM Plex Mono, monospace"
       >{v > 0 ? '+' : ''}{v.toFixed(1)}</text>
       <line
         x1={PAD.left - 1} y1={computed.yOf(v)}
@@ -193,6 +203,7 @@
       />
     {/each}
   </svg>
+  </div>
 </div>
 
 <style>
@@ -227,7 +238,9 @@
     flex-shrink: 0;
     transition: background 0.15s;
   }
-  .play-btn:hover { background: var(--hover); }
+  @media (hover: hover) {
+    .play-btn:hover { background: var(--hover); }
+  }
   .play-btn svg { width: 11px; height: 11px; }
 
   .year {
@@ -265,5 +278,23 @@
     height: 110px;
     cursor: crosshair;
     display: block;
+    /* Horizontal drags scrub the chart instead of panning/zooming the page */
+    touch-action: none;
+  }
+
+  @media (max-width: 720px) {
+    .chart-wrap {
+      padding: 8px 12px;
+    }
+    .play-btn {
+      width: 32px;
+      height: 32px;
+    }
+    .label {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
 </style>
